@@ -17,7 +17,8 @@ function bigrams(str: string): string[] {
 
 // Sørensen–Dice coefficient: 2 * |shared bigrams| / (|bigrams1| + |bigrams2|)
 // Returns 0 (no similarity) to 1 (identical)
-export function titleSimilarity(a: string, b: string): number {
+// Compares two strings
+export function stringSimilarity(a: string, b: string): number {
   const normA = normalizeTitle(a)
   const normB = normalizeTitle(b)
 
@@ -51,7 +52,7 @@ export function findBestTitleMatch(
 
   for (const candidate of candidates) {
     for (const title of candidate.titles) {
-      const score = titleSimilarity(target, title)
+      const score = stringSimilarity(target, title)
       if (score >= threshold && (!best || score > best.score)) {
         best = { data: candidate.data, score }
       }

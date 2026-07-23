@@ -3,7 +3,7 @@
   import { manhwaStore } from '@/lib/manhwaStore.svelte'
   import { setSelectedManhwa } from '@/lib/selectedManhwa.svelte'
   import * as queries from '@/lib/searchParams.svelte'
-  import { titleSimilarity } from '@/lib/titleMatch'
+  import { stringSimilarity } from '@/lib/titleMatch'
   import Card from '@/components/Card.svelte'
   import StatusBar from '@/components/StatusBar.svelte'
   import FavoriteButton from '@/components/FavoriteButton.svelte';
@@ -38,7 +38,7 @@
   }
   
   const compare = (a: Manhwa) => {
-    const titleSim = titleSimilarity(a.title, debouncedQuery)
+    const titleSim = stringSimilarity(a.title, debouncedQuery)
     const titleIncludes = a.title.toLowerCase().includes(debouncedQuery.toLowerCase())
     const statusMatches = status === 'All' || a.status === status
     const favoriteMatches = !showFavoritesOnly || a.favorite
@@ -488,7 +488,12 @@
   font-size: 11px;
   color: #475569;
   font-variant-numeric: tabular-nums;
-  transition: opacity 200ms ease;
+  transition: opacity 200ms ease, color 300ms ease-in-out;
+}
+
+.count-text:hover {
+  color: #ffff;
+  transition: color 300ms ease-in-out;
 }
 
 .count-text.is-hidden {

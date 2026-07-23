@@ -1,5 +1,6 @@
 // src/lib/scraper/genericScraper.ts
 import type { ScrapedManhwa } from '@/types'
+import { extractTitleRobust } from './titleScraper'
 
 const MAX_PLAUSIBLE_CHAPTER = 5000 // generous — real series rarely get near this
 
@@ -60,9 +61,11 @@ function extractTitle(doc: Document): string {
       .join(' ')
       .trim()
     title = directText || h1.querySelector('*')?.textContent?.trim() || ''
+    console.log('Extracted title from <h1>:', title)
   }
-
+  
   if (!title) {
+    console.log('Extracted title from meta:', title)
     title = (getMeta(doc, 'og:title') ?? doc.title).split('|')[0].trim()
     title = title.replace(/^Read\s+/i, '')
     title = title.replace(/\s*[-–]\s*(Latest Chapters?.*|Free.*|Manga Online.*)$/i, '')
@@ -132,7 +135,7 @@ function extractImage(doc: Document): string | null {
   return actualImg?.getAttribute('src') || null
 }
 export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, 'chapters'> {
-  const title = extractTitle(doc)
+  const title = extractTitleRobust(doc) ?? ""
   return {
     title,
     coverUrl: extractImage(doc) || getMeta(doc, 'og:image') || null,

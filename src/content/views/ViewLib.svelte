@@ -1,95 +1,106 @@
 <script lang="ts">
-    import * as selectManwha from '@/lib/selectedManhwa.svelte'
-    import { manhwaStore } from '@/lib/manhwaStore.svelte'
+  import * as selectManwha from '@/lib/selectedManhwa.svelte'
 
-    let added = $state(true)
-    let isSidePanelOpenAlready = $state(false)
-    let error = $state<string | null>(null)
-    const windowUrl = $derived(window.location.href)
+  let { manhwaId, dismissed = $bindable(false) }: { manhwaId: string; dismissed: boolean } = $props()
 
-    async function checkSidePanelOpen() {
-        console.log('[viewlib] checking if side panel is already open')
-        const response = await chrome.runtime.sendMessage({ type: 'is-sidepanel-open' })
-        if (response.ok) {
-            isSidePanelOpenAlready = true
-        } else {
-            isSidePanelOpenAlready = false
-            console.error('[viewlib] failed to check side panel status', response.status)
-            error = 'Failed to check library status, please try again.'
-        }
+  let sidePanelOpenAlready = $state(false)
+  let notSameManhwa = $state(true)
+  let ready = $state(false)
+  let showing = $derived(ready && (!sidePanelOpenAlready || notSameManhwa) || dismissed)
+
+  async function checkSidePanelAndSelection() {
+    try {
+      const panelRes = await chrome.runtime.sendMessage({ type: 'is-sidepanel-open' })
+      if (!panelRes?.ok) {
+        sidePanelOpenAlready = false
+        notSameManhwa = true
+        return
+      }
+
+      sidePanelOpenAlready = true
+      const selectedRes = await chrome.runtime.sendMessage({ type: 'get-selected-manhwa' })
+      notSameManhwa = selectedRes?.id !== manhwaId
+    } finally {
+      ready = true
     }
-    checkSidePanelOpen()
+  }
 
-    async function handleViewLib() {
-        let manhwa = await manhwaStore.getManhwaBySourceUrl(windowUrl)
-        if (manhwa) {
-            await selectManwha.setSelectedManhwaBg(manhwa.id)
-        } else {
-            added = false
-            console.warn('[viewlib] no manhwa found for sourceUrl:', windowUrl)
-        }
-        
-        console.log('[viewlib] opening side panel for manhwa:', manhwa?.title)
-        const success = await chrome.runtime.sendMessage({ type: 'open-sidepanel' })
-        if (success) {
-            console.log('[viewlib] side panel opened successfully')
-            added = false
-            isSidePanelOpenAlready = false
-        } else {
-            console.error('[viewlib] failed to open side panel')
-            error = 'Failed to open library, please try again.'
-            isSidePanelOpenAlready = true
-        }
+  $effect(() => {
+    checkSidePanelAndSelection()
+  })
+
+  async function handleViewLib() {
+    await selectManwha.setSelectedManhwaBg(manhwaId)
+    const response = await chrome.runtime.sendMessage({ type: 'open-sidepanel' })
+    if (response?.ok) {
+      sidePanelOpenAlready = true
+      notSameManhwa = false
+      dismissed = true
+    } else {
+      console.error('[viewlib] failed to open side panel')
     }
+  }
 </script>
-{#if added && !isSidePanelOpenAlready}
-  <div class="popup-container">
-  <button class="toggle-button" onclick={handleViewLib}>
-    <span>View In Library</span>
-  </button>
-</div>
-{/if}
+
+<!-- {#if showing} -->
+  <div class="popup-container" class:not-showing={!showing}>
+    <button class="toggle-button" onclick={handleViewLib}>
+      <span>View In Library</span>
+    </button>
+  </div>
+<!-- {/if} -->
 <style>
-    .popup-container {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        margin: 20px;
-        z-index: 100;
-        display: flex;
-        align-items: flex-end;
-        font-size: 16px;
-        font-family: ui-sans-serif, system-ui, sans-serif;
-        user-select: none;
-        line-height: 1;
-        box-sizing: border-box;
-    }
+  .popup-container {
+    /* position: fixed;
+    left: 0;
+    bottom: 0; */
+    z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    font-size: 16px;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    user-select: none;
+    line-height: 1;
+    box-sizing: border-box;
+  }
 
-    .popup-container * {
-        box-sizing: border-box; /* force it for all descendants, regardless of host page resets */
-    }
+  .popup-container.not-showing {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(0);
+    transition: transform 300ms ease-in, opacity 300ms ease-in;
+  }
 
-    .toggle-button {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 150px;
-        height: 40px;
-        border-radius: 9999px;
-        overflow: hidden;
-        box-shadow:
-            0 1px 3px 0 rgb(0 0 0 / 0.1),
-            0 1px 2px -1px rgb(0 0 0 / 0.1);
-        cursor: pointer;
-        border: none;
-        background: linear-gradient(0, #a157dd72, #4338ca);
-        padding: 0;
-        flex-shrink: 0; /* prevent flex from squishing the button if content is wide */
-        transition: background-color 550ms ease, box-shadow 150ms ease;
-    }
+  .popup-container * {
+    box-sizing: border-box; /* force it for all descendants, regardless of host page resets */
+  }
 
-    .toggle-button:hover {
-        background-color: #9289cf;
-    }
+  .toggle-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 150px;
+    height: 40px;
+    border-radius: 9999px;
+    overflow: hidden;
+    box-shadow:
+        0 1px 3px 0 rgb(0 0 0 / 0.1),
+        0 1px 2px -1px rgb(0 0 0 / 0.1);
+    cursor: pointer;
+    border: none;
+    background: linear-gradient(0, #a157dd72, #4338ca);
+    padding: 0;
+    flex-shrink: 0; /* prevent flex from squishing the button if content is wide */
+    transition: background-color 550ms ease, box-shadow 150ms ease, scale 200ms ease-in-out;
+  }
+
+  .toggle-button:active {
+    transform: scale(0.95);
+    transition: transform 200ms ease-in-out;
+  }
+  
+  .toggle-button:hover {
+    background-color: #9289cf;
+  }
 
 </style>

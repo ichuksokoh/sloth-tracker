@@ -1,6 +1,6 @@
 // src/background/main.ts
 import { cacheCover } from '@/lib/coverCache.svelte'
-import { titleSimilarity } from '@/lib/titleMatch'
+import { stringSimilarity } from '@/lib/titleMatch'
 
 async function fetchMangadexCover(title: string): Promise<Blob | null> {
   try {
@@ -23,7 +23,7 @@ async function fetchMangadexCover(title: string): Promise<Blob | null> {
       )
       const candidates = [...Object.values(titleAttrs), ...altTitles].filter(Boolean) as string[]
       for (const candidateTitle of candidates) {
-        const score = titleSimilarity(title, candidateTitle)
+        const score = stringSimilarity(title, candidateTitle)
         if (score >= 0.6 && (!best || score > best.score)) {
           best = { manga, score }
         }
@@ -79,6 +79,7 @@ async function handleMessage(msg: any, sender: chrome.runtime.MessageSender) {
       return { ok: false };
     }
   }
+
   if (msg.type === 'open-sidepanel') {
     const windowId = sender.tab?.windowId
     if (windowId === undefined) return {ok : false}
@@ -86,13 +87,19 @@ async function handleMessage(msg: any, sender: chrome.runtime.MessageSender) {
     console.log('[background] side panel opened in window', windowId)
     return {ok : true, status: 'opened'}
   }
+
   if (msg.type === 'is-sidepanel-open') {
     const windowId = sender.tab?.windowId
     if (windowId === undefined) return {ok : false}
     const res = await chrome.storage.session.get(`sidePanelOpen:${windowId}`)
     const isOpen = res[`sidePanelOpen:${windowId}`] // boolean value
     return isOpen ? {ok : true, status: 'already-open'} : {ok : false, status: 'not-open'}
-  } 
+  }
+  
+  if (msg.type === 'get-selected-manhwa') {
+    const res = await chrome.storage.session.get('selectedManhwaId')
+    return { ok: true, id: res.selectedManhwaId ?? null }
+  }
 }
 
 // Listen for messages from content scripts or other parts of the extension

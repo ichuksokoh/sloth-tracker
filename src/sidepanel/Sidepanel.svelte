@@ -15,7 +15,7 @@
   import GoToBtn from '@/components/GoToBtn.svelte';
   import AlertBox from '@/components/AlertBox.svelte'
   
-  // tracks open/close status of the side panel, to avoid opening multiple instances of it
+  // tracks open/close status of the side panel for view in library button
   chrome.runtime.connect({ name: 'sidepanel-heartbeat' })
   chrome.windows.getCurrent().then((win) => {
   if (win.id === undefined) return
@@ -31,7 +31,11 @@
   )
   
   const cover = retrieveCover(() => selectedManhwa)
-
+  let isLandscape = $state(false)
+  function handleCoverLoad(e: Event) {
+    const img = e.currentTarget as HTMLImageElement
+    isLandscape = img.naturalWidth > img.naturalHeight
+  }
   $effect(() => {
     getSelectedManhwa().then((id) => {
       selectedId = id
@@ -50,7 +54,7 @@
     )
     
     manhwaStore.update(selectedManhwa.id, { currentChapter: chapterNumber, 
-      updatedAt: Date.now(), status: 'Reading', chapters: chapters })
+      status: 'Reading', chapters: chapters })
     }
   }
   
@@ -72,7 +76,7 @@
   
   function handleStatusSelect(label: string) {
     if (selectedManhwa && (statusValues as readonly string[]).includes(label)) {
-      manhwaStore.update(selectedManhwa.id, { status: statusValues.find((s) => s === label), updatedAt: Date.now() })
+      manhwaStore.update(selectedManhwa.id, { status: statusValues.find((s) => s === label) })
     }
   }
   
@@ -104,7 +108,7 @@
   // Function to handle rating selection
   function handleRatingSelect(value: number) {
     if (selectedManhwa) {
-      manhwaStore.update(selectedManhwa.id, { rating: value, updatedAt: Date.now() })
+      manhwaStore.update(selectedManhwa.id, { rating: value })
     }
   }
   
@@ -128,10 +132,7 @@
   let showDeleteConfirm = $state(false)
    async function toggleHidden() {
     if (selectedManhwa) {
-      await manhwaStore.update(selectedManhwa.id, {
-        hidden: !selectedManhwa.hidden,
-        updatedAt: Date.now(),
-      })
+      await manhwaStore.update(selectedManhwa.id, { hidden: !selectedManhwa.hidden })
     }
   }
 </script>
@@ -159,9 +160,9 @@
         <h1 style="font-size: {titleFontSize(selectedManhwa.title)};">{selectedManhwa.title}</h1>
       </div>
 
-      <div class="cover-wrap">
+      <div class="cover-wrap" class:is-landscape={isLandscape}>
         {#if cover.url}
-          <img src={cover.url} alt={selectedManhwa.title} loading="lazy" />
+          <img src={cover.url} alt={selectedManhwa.title} loading="lazy" onload={handleCoverLoad} />
         {:else}
           <div class="cover-placeholder">No Cover</div>
         {/if}
@@ -244,25 +245,50 @@
   }
 
   .cover-wrap {
+    display: flex;
+    justify-content: center;
+    width: 100%;
     max-width: 320px;
+    border-radius: 8px;
   }
+
+  .cover-wrap.is-landscape {
+    max-width: 550px;
+  }
+
   .cover-wrap img {
     width: 100%;
-    max-width: 400px;
-    max-height: 550px;
     height: auto;
     border-radius: 8px;
+    object-fit: contain;
+  }
 
+  /* Portrait (default): tall aspect, floor at 320×420 */
+  .cover-wrap:not(.is-landscape) img {
+    min-width: 320px;
+    min-height: 420px;
+    max-width: 400px;
+    max-height: 550px;
+  }
+
+  /* Landscape: wide aspect, floor at 320×200, grows with the panel */
+  .cover-wrap.is-landscape img {
+    min-width: 320px;
+    min-height: 200px;
+    max-width: 100%;
+    max-height: 450px;
   }
 
   .cover-placeholder {
-    width: 100%;
-    height: 100%;
+    width: 320px;
+    height: 420px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #475569;
     font-size: 24px;
+    border-radius: 8px;
+    background: #1e293b;
   }
 
   .controls-stack {
@@ -271,6 +297,7 @@
     gap: 10px;
     margin: 14px 0;
     padding:0 4px;
+    min-width: 320px;
     max-width: 450px;
   }
   .controls-row {

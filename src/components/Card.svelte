@@ -66,7 +66,7 @@
 
   function handleToggleFavorite(e: MouseEvent) {
     e.stopPropagation()
-    manhwaStore.update(manhwa.id, { favorite: !manhwa.favorite, updatedAt: Date.now() })
+    manhwaStore.update(manhwa.id, { favorite: !manhwa.favorite })
   }
 
   let showDeleteConfirm = $state(false)

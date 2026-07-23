@@ -19,13 +19,13 @@
     inputValue = hasSelection ? String(rating) : ''
   })
 
-  function clampAndStep(value: number): number {
-    const stepped = Math.round(value / STEP) * STEP
+  function clampAndStep(value: number, fromInput = false): number {
+    const stepped = fromInput ? Math.round(value * 100) / 100 : Math.round(value / STEP) * STEP
     return Math.min(MAX, Math.max(MIN, Math.round(stepped * 100) / 100))
   }
 
-  function commit(value: number, { live = false } = {}) {
-    const clamped = clampAndStep(value)
+  function commit(value: number, { live = false } = {}, fromInput = false) {
+    const clamped = clampAndStep(value, fromInput)
     rating = clamped
     if (!live) {
       onSelect?.(clamped)
@@ -36,7 +36,7 @@
     const raw = (e.currentTarget as HTMLInputElement).value
     const parsed = parseFloat(raw)
     if (!Number.isNaN(parsed)) {
-      commit(parsed)
+      commit(parsed, {}, true)
     } else {
       inputValue = hasSelection ? String(rating) : ''
     }

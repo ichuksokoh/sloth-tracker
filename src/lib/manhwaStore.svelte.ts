@@ -1,5 +1,5 @@
 import type { Manhwa } from '@/types'
-import { titleSimilarity } from './titleMatch'
+import { stringSimilarity } from './titleMatch'
 
 let list = $state<Manhwa[]>([])
 
@@ -40,7 +40,7 @@ export const manhwaStore = {
     await persist()
   },
   async update(id: string, patch: Partial<Manhwa>) {
-    list = list.map((m) => (m.id === id ? { ...m, ...patch } : m))
+    list = list.map((m) => (m.id === id ? { ...m, ...patch, updatedAt: Date.now() } : m))
     await persist()
   },
   async remove(id: string) {
@@ -57,14 +57,14 @@ export const manhwaStore = {
     list = []
     await persist()
   },
-  async getManhwaByTitleOnHost(title: string, url: string, threshold = 0.85) {
+  async getManhwaByTitleOnHost(title: string, url: string, threshold = 0.9) {
     const host = getHostname(url)
     if (!host) return undefined
 
     let best: { manhwa: Manhwa; score: number } | undefined
     for (const m of list) {
       if (getHostname(m.sourceUrl) !== host) continue
-      const score = titleSimilarity(title, m.title)
+      const score = stringSimilarity(title, m.title)
       if (score >= threshold && (!best || score > best.score)) {
         best = { manhwa: m, score }
       }

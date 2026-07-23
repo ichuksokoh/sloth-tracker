@@ -23,7 +23,7 @@ export default defineManifest({
       '*://drakecomic.org/*',
       '*://*.mangago.me/*',
       '*://rizzfables.com/*',
-      '<all_urls>',
+      // '<all_urls>',
     ],
     js: ['src/content/main.ts'],
   }],

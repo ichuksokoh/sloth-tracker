@@ -1,69 +1,19 @@
-// src/content/main.ts
 import { mount, unmount } from 'svelte'
 import App from './views/App.svelte'
-import ViewLib from './views/ViewLib.svelte'
 import { looksLikeSeriesPage, scrapeCurrentPage } from '@/lib/scraper/index'
 import { manhwaStore } from '@/lib/manhwaStore.svelte'
-import type { ScrapedChapter } from '@/types'
+import  { updateExistingManhwa } from '@/lib/updateManhwaLib.svelte'
+
 
 let currentApp: ReturnType<typeof mount> | null = null
-let mountedForUrl: string | null = null // only set once we've actually acted on a URL
+let mountedForUrl: string | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-console.log('Content scraped:', scrapeCurrentPage())
-// Update manhwa that is stored already
-async function updateExistingManhwa() {
-  const url = window.location.href
-  const scraped = scrapeCurrentPage()
 
-  if (!scraped.title) return
-
-  const existingManhwa = await manhwaStore.getManhwaByTitleOnHost(scraped.title, url)
-  if (!existingManhwa) return
-  if (existingManhwa.chapters.length >= scraped.chapters.length) return // no new chapters to update
-  
-
-  const chpCompare = (a: ScrapedChapter, b: ScrapedChapter) => {
-    const eqNum = a.number === b.number
-    const eqUrl = a.url === b.url
-    const eqLabel = a.label === b.label
-    return eqNum && eqUrl && eqLabel
-  }
-
-  // If any of the existing chapters are different from the scraped chapters, we don't update
-  if (existingManhwa.chapters.filter((ch, i) => chpCompare(ch, scraped.chapters[i])).length !== 0) {
-    return
-  }
-
-  // Only update if all the new chapters are new (not already in the existing chapters)
-  let onlyNewChps = true
-  for (let i = existingManhwa.chapters.length; i < scraped.chapters.length; i++) {
-    if (existingManhwa.chapters.find(ch => chpCompare(ch, scraped.chapters[i]))) {
-      onlyNewChps = false
-      break
-    }
-  }
-
-  if (onlyNewChps) {
-    const updatedManhwa = {
-      ...existingManhwa,
-      sourceUrl: scraped.sourceUrl ?? existingManhwa.sourceUrl,
-      totalChapters: scraped.latestChapter ?? existingManhwa.totalChapters,
-      chapters: scraped.chapters ?? existingManhwa.chapters,
-      updatedAt: Date.now(),
-    }
-  
-    await manhwaStore.update(existingManhwa.id, updatedManhwa)
-  }
-}
-
-
-// For addding to Library
 async function evaluateAndMount() {
   const url = window.location.href
-
-  // avoid redundant teardown/remount if we already handled this exact URL
   if (url === mountedForUrl) return
+  console.log('window:', url, 'mountedForUrl:', mountedForUrl)
 
   const container = document.getElementById('crxjs-app')
   if (currentApp) {
@@ -73,44 +23,51 @@ async function evaluateAndMount() {
   container?.remove()
 
   if (!looksLikeSeriesPage()) {
-    // don't lock mountedForUrl here — content may still be loading;
-    // let future debounced calls keep re-checking this same URL
     mountedForUrl = null
     return
   }
 
   const scraped = scrapeCurrentPage()
-  const manhwaExists = await manhwaStore.getManhwaByTitleOnHost(scraped.title, url)
-  if (manhwaExists) {
-    console.log('Updating existing manhwa in store...')
-    await updateExistingManhwa()
-    mountedForUrl = url // genuinely resolved: already tracked, stop re-checking
-    // mount the library view instead of the add-to-library view
-    const newContainer = document.createElement('div')
-    newContainer.id = 'crxjs-app'
-    document.body.appendChild(newContainer)
-    currentApp = mount(ViewLib, { target: newContainer })
-    return
-  }
+  console.log('Scraped manhwa:', scraped)
+  // await updateExistingManhwa(scraped, url)
+  // let existing = await manhwaStore.getManhwaByTitleOnHost(scraped.title, url)
+  // existing = await manhwaStore.getManhwaBySourceUrl(url)
 
   const newContainer = document.createElement('div')
   newContainer.id = 'crxjs-app'
   document.body.appendChild(newContainer)
-  currentApp = mount(App, { target: newContainer })
-  mountedForUrl = url // genuinely resolved: mounted successfully
+  currentApp = mount(App, {
+    target: newContainer,
+    // props: { scraped, existingManhwaId: existing?.id ?? null },
+  })
+  mountedForUrl = url
 }
 
 function scheduleEvaluate() {
+  console.log('Content script started')
   if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(evaluateAndMount, 400)
+  debounceTimer = setTimeout(evaluateAndMount, 600)
 }
 
-// initial mount
-scheduleEvaluate()
+function start() {
+  scheduleEvaluate();
 
-const observer = new MutationObserver(() => {
-  scheduleEvaluate()
-})
+  // 1. Listen for standard history and popstate navigation events
+  window.addEventListener('popstate', scheduleEvaluate);
+  window.addEventListener('hashchange', scheduleEvaluate);
 
-observer.observe(document.body, { childList: true, subtree: true })
+  // 2. Narrow the observer scope to the main content container only
+  const mainContent = document.querySelector('#app') || document.querySelector('main') || document.body;
+  
+  if (mainContent !== document.body) {
+    const observer = new MutationObserver(() => scheduleEvaluate());
+    observer.observe(mainContent, { childList: true, subtree: false }); // Drop subtree if possible
+  }
+}
 
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', start, { once: true })
+} else {
+  start()
+}
