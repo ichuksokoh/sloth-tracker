@@ -25,7 +25,7 @@ export default defineManifest({
       '*://rizzfables.com/*',
       // '<all_urls>',
     ],
-    js: ['src/content/main.ts'],
+    js: ['src/content/content.ts'],
   }],
   background: {
     service_worker: 'src/background/background.ts',
