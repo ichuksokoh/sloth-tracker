@@ -1,71 +1,73 @@
 <script lang="ts">
   let {
-    labels = ['Plan To Read', 'Reading', 'Completed', 'Dropped'],
+    labels = ["Plan To Read", "Reading", "Completed", "Dropped"],
     selected = $bindable(labels[0]),
-    onSelect,
-  }: { labels?: readonly string[]; selected?: string; onSelect?: (label: string) => void } = $props()
+    onSelect
+  }: {
+    labels?: readonly string[];
+    selected?: string;
+    onSelect?: (label: string) => void;
+  } = $props();
 
-  let buttonEls: HTMLElement[] = $state([])
-  let containerEl = $state<HTMLElement | null>(null)
-  let highlightLeft = $state(0)
-  let highlightWidth = $state(0)
-  let fontScale = $state(1)
-  let selectedIndex = $derived(labels.indexOf(selected))
+  let buttonEls: HTMLElement[] = $state([]);
+  let highlightLeft = $state(0);
+  let highlightWidth = $state(0);
+  let fontScale = $state(1);
+  let selectedIndex = $derived(labels.indexOf(selected));
 
   function select(label: string) {
-    selected = label
-    onSelect?.(label)
+    selected = label;
+    onSelect?.(label);
   }
 
   function updateHighlightPosition() {
-    const el = buttonEls[selectedIndex]
-    if (!el) return
-    highlightLeft = el.offsetLeft
-    highlightWidth = el.offsetWidth
+    const el = buttonEls[selectedIndex];
+    if (!el) return;
+    highlightLeft = el.offsetLeft;
+    highlightWidth = el.offsetWidth;
   }
 
   // Measures whether any label is currently overflowing its own button
   // at the current font size, and if so, shrinks the font just enough
   // for the tightest-fitting label to stay on one line.
   function updateFontScale() {
-    let tightestRatio = 1
+    let tightestRatio = 1;
     for (const el of buttonEls) {
-      if (!el) continue
-      const span = el.querySelector('span')
-      if (!span) continue
+      if (!el) continue;
+      const span = el.querySelector("span");
+      if (!span) continue;
 
-      const style = getComputedStyle(el)
-      const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
-      const availableWidth = el.clientWidth - horizontalPadding - 4
+      const style = getComputedStyle(el);
+      const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const availableWidth = el.clientWidth - horizontalPadding - 4;
 
       if (span.scrollWidth > availableWidth) {
-        const ratio = availableWidth / span.scrollWidth
-        if (ratio < tightestRatio) tightestRatio = ratio
+        const ratio = availableWidth / span.scrollWidth;
+        if (ratio < tightestRatio) tightestRatio = ratio;
       }
     }
-    fontScale = Math.max(0.7, tightestRatio)
+    fontScale = Math.max(0.7, tightestRatio);
   }
 
   $effect(() => {
-    selected // re-run whenever selection changes
-    updateHighlightPosition()
-  })
+    selected; // re-run whenever selection changes
+    updateHighlightPosition();
+  });
 
   // keep it correct if the container ever resizes (window resize, sidepanel width change, etc.)
   $effect(() => {
-    const observer = new ResizeObserver(() => 
-  {
-      updateHighlightPosition()
-      updateFontScale()
-    })
+    const observer = new ResizeObserver(() => {
+      updateHighlightPosition();
+      updateFontScale();
+    });
     for (const el of buttonEls) {
-      if (el) observer.observe(el)
+      if (el) observer.observe(el);
     }
-    return () => observer.disconnect()
-  })
+    return () => observer.disconnect();
+  });
 </script>
 
-<div class="status-bar" bind:this={containerEl} style="--font-scale: {fontScale};">
+<div class="status-bar" style="--font-scale: {fontScale};">
   <div
     class="highlight"
     style="transform: translateX({highlightLeft}px); width: {highlightWidth}px;"
@@ -129,6 +131,8 @@
     border: 1px solid rgba(37, 99, 235, 0.8);
     border-radius: 50px;
     pointer-events: none;
-    transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1), width 250ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition:
+      transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
+      width 250ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 </style>

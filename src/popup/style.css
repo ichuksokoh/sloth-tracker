@@ -13,8 +13,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-
-
 body {
   margin: 0;
   display: flex;
@@ -22,7 +20,6 @@ body {
   min-width: 480px;
   min-height: 480px;
 }
-
 
 #app {
   max-width: 1280px;

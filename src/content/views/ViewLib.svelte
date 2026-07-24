@@ -1,53 +1,74 @@
 <script lang="ts">
-  import * as selectManwha from '@/lib/selectedManhwa.svelte'
+  import * as selectManwha from "@/lib/selectedManhwa.svelte";
 
-  let { manhwaId, dismissed = $bindable(false) }: { manhwaId: string; dismissed: boolean } = $props()
+  interface ViewLibProps {
+    manhwaId: string;
+    dismissed?: boolean;
+    libOpen?: boolean;
+  }
 
-  let sidePanelOpenAlready = $state(false)
-  let notSameManhwa = $state(true)
-  let ready = $state(false)
-  let showing = $derived(ready && (!sidePanelOpenAlready || notSameManhwa) || dismissed)
+  let {
+    manhwaId,
+    dismissed = $bindable(false),
+    libOpen = $bindable(false)
+  }: ViewLibProps = $props();
+
+  let sidePanelOpenAlready = $state(false);
+  let notSameManhwa = $state(true);
+  let ready = $state(false);
+  let showing = $derived((ready && (!sidePanelOpenAlready || notSameManhwa)) || dismissed);
 
   async function checkSidePanelAndSelection() {
     try {
-      const panelRes = await chrome.runtime.sendMessage({ type: 'is-sidepanel-open' })
+      const panelRes = await chrome.runtime.sendMessage({
+        type: "is-sidepanel-open"
+      });
       if (!panelRes?.ok) {
-        sidePanelOpenAlready = false
-        notSameManhwa = true
-        return
+        sidePanelOpenAlready = false;
+        notSameManhwa = true;
+        return;
       }
 
-      sidePanelOpenAlready = true
-      const selectedRes = await chrome.runtime.sendMessage({ type: 'get-selected-manhwa' })
-      notSameManhwa = selectedRes?.id !== manhwaId
+      sidePanelOpenAlready = true;
+      const selectedRes = await chrome.runtime.sendMessage({
+        type: "get-selected-manhwa"
+      });
+      notSameManhwa = selectedRes?.id !== manhwaId;
     } finally {
-      ready = true
+      ready = true;
     }
   }
 
   $effect(() => {
-    checkSidePanelAndSelection()
-  })
+    checkSidePanelAndSelection();
+  });
+  $effect(() => {
+    console.log("showing", showing);
+    libOpen = showing;
+  });
 
   async function handleViewLib() {
-    await selectManwha.setSelectedManhwaBg(manhwaId)
-    const response = await chrome.runtime.sendMessage({ type: 'open-sidepanel' })
+    await selectManwha.setSelectedManhwaBg(manhwaId);
+    const response = await chrome.runtime.sendMessage({
+      type: "open-sidepanel"
+    });
     if (response?.ok) {
-      sidePanelOpenAlready = true
-      notSameManhwa = false
-      dismissed = true
+      sidePanelOpenAlready = true;
+      notSameManhwa = false;
+      dismissed = true;
     } else {
-      console.error('[viewlib] failed to open side panel')
+      console.error("[viewlib] failed to open side panel");
     }
   }
 </script>
 
 <!-- {#if showing} -->
-  <div class="popup-container" class:not-showing={!showing}>
-    <button class="toggle-button" onclick={handleViewLib}>
-      <span>View In Library</span>
-    </button>
-  </div>
+<div class="popup-container" class:not-showing={!showing}>
+  <button class="toggle-button" onclick={handleViewLib}>
+    <span>View In Library</span>
+  </button>
+</div>
+
 <!-- {/if} -->
 <style>
   .popup-container {
@@ -68,7 +89,9 @@
     opacity: 0;
     pointer-events: none;
     transform: translateX(0);
-    transition: transform 300ms ease-in, opacity 300ms ease-in;
+    transition:
+      transform 300ms ease-in,
+      opacity 300ms ease-in;
   }
 
   .popup-container * {
@@ -84,23 +107,25 @@
     border-radius: 9999px;
     overflow: hidden;
     box-shadow:
-        0 1px 3px 0 rgb(0 0 0 / 0.1),
-        0 1px 2px -1px rgb(0 0 0 / 0.1);
+      0 1px 3px 0 rgb(0 0 0 / 0.1),
+      0 1px 2px -1px rgb(0 0 0 / 0.1);
     cursor: pointer;
     border: none;
     background: linear-gradient(0, #a157dd72, #4338ca);
     padding: 0;
     flex-shrink: 0; /* prevent flex from squishing the button if content is wide */
-    transition: background-color 550ms ease, box-shadow 150ms ease, scale 200ms ease-in-out;
+    transition:
+      background-color 550ms ease,
+      box-shadow 150ms ease,
+      scale 200ms ease-in-out;
   }
 
   .toggle-button:active {
     transform: scale(0.95);
     transition: transform 200ms ease-in-out;
   }
-  
+
   .toggle-button:hover {
     background-color: #9289cf;
   }
-
 </style>

@@ -1,25 +1,25 @@
 <script lang="ts">
   let {
     onclick,
-    label = 'Button',
-    colorFrom = '#1e293b',
-    colorTo = '#1e293b',
-    textColor = '#99a1a8',
-    hoverTextColor = '#e6e8eb',
-    borderColor = '#334155',
-    hoverBorderColor = '#475569',
+    label = "Button",
+    colorFrom = "#1e293b",
+    colorTo = "#1e293b",
+    textColor = "#99a1a8",
+    hoverTextColor = "#e6e8eb",
+    borderColor = "#334155",
+    hoverBorderColor = "#475569",
     disabled = false,
   }: {
-    onclick: () => void
-    label?: string
-    colorFrom?: string
-    colorTo?: string
-    textColor?: string
-    hoverTextColor?: string
-    borderColor?: string
-    hoverBorderColor?: string
-    disabled?: boolean
-  } = $props()
+    onclick: () => void;
+    label?: string;
+    colorFrom?: string;
+    colorTo?: string;
+    textColor?: string;
+    hoverTextColor?: string;
+    borderColor?: string;
+    hoverBorderColor?: string;
+    disabled?: boolean;
+  } = $props();
 </script>
 
 <button
@@ -53,11 +53,7 @@
     border-radius: 10px;
     border: 1px solid var(--border);
 
-    background: linear-gradient(
-      180deg,
-      var(--color-from),
-      var(--color-to)
-    );
+    background: linear-gradient(180deg, var(--color-from), var(--color-to));
 
     color: var(--text);
     font: inherit;

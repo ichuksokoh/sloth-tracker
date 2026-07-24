@@ -2,67 +2,71 @@
   let {
     rating = $bindable(undefined),
     onSelect,
-  }: { rating?: number; onSelect?: (value: number) => void } = $props()
+  }: { rating?: number; onSelect?: (value: number) => void } = $props();
 
-  const MIN = 0
-  const MAX = 10
-  const STEP = 0.25
+  const MIN = 0;
+  const MAX = 10;
+  const STEP = 0.25;
 
-  let trackEl = $state<HTMLElement | null>(null)
-  let dragging = $state(false)
-  let inputValue = $state('')
+  let trackEl = $state<HTMLElement | null>(null);
+  let dragging = $state(false);
+  let inputValue = $state("");
 
-  let hasSelection = $derived(rating !== undefined)
-  let percent = $derived(hasSelection ? ((rating! - MIN) / (MAX - MIN)) * 100 : 0)
+  let hasSelection = $derived(rating !== undefined);
+  let percent = $derived(
+    hasSelection ? ((rating! - MIN) / (MAX - MIN)) * 100 : 0,
+  );
 
   $effect(() => {
-    inputValue = hasSelection ? String(rating) : ''
-  })
+    inputValue = hasSelection ? String(rating) : "";
+  });
 
   function clampAndStep(value: number, fromInput = false): number {
-    const stepped = fromInput ? Math.round(value * 100) / 100 : Math.round(value / STEP) * STEP
-    return Math.min(MAX, Math.max(MIN, Math.round(stepped * 100) / 100))
+    const stepped = fromInput
+      ? Math.round(value * 100) / 100
+      : Math.round(value / STEP) * STEP;
+    return Math.min(MAX, Math.max(MIN, Math.round(stepped * 100) / 100));
   }
 
   function commit(value: number, { live = false } = {}, fromInput = false) {
-    const clamped = clampAndStep(value, fromInput)
-    rating = clamped
+    const clamped = clampAndStep(value, fromInput);
+    rating = clamped;
     if (!live) {
-      onSelect?.(clamped)
+      onSelect?.(clamped);
     }
   }
 
   function handleInputChange(e: Event) {
-    const raw = (e.currentTarget as HTMLInputElement).value
-    const parsed = parseFloat(raw)
+    const raw = (e.currentTarget as HTMLInputElement).value;
+    const parsed = parseFloat(raw);
     if (!Number.isNaN(parsed)) {
-      commit(parsed, {}, true)
+      commit(parsed, {}, true);
     } else {
-      inputValue = hasSelection ? String(rating) : ''
+      inputValue = hasSelection ? String(rating) : "";
     }
   }
 
   function valueFromClientX(clientX: number): number {
-    if (!trackEl) return MIN
-    const rect = trackEl.getBoundingClientRect()
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-    return MIN + ratio * (MAX - MIN)
+    if (!trackEl) return MIN;
+    const rect = trackEl.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    return MIN + ratio * (MAX - MIN);
   }
 
   function handlePointerDown(e: PointerEvent) {
-    dragging = true
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    commit(valueFromClientX(e.clientX), { live: true })
+    dragging = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    commit(valueFromClientX(e.clientX), { live: true });
   }
 
   function handlePointerMove(e: PointerEvent) {
-    if (!dragging) return
-    commit(valueFromClientX(e.clientX), { live: true })
+    if (!dragging) return;
+    commit(valueFromClientX(e.clientX), { live: true });
   }
 
   function handlePointerUp(e: PointerEvent) {
-    dragging = false
-    onSelect?.(rating!) // commit the final value exactly once, now that dragging has stopped
+    dragging = false;
+    onSelect?.(rating!); // commit the final value exactly once, now that dragging has stopped
   }
 </script>
 
@@ -82,7 +86,7 @@
       />
     </span>
     <span class="rating-value" class:is-empty={!hasSelection}>
-      {hasSelection ? rating!.toFixed(2) : '—'}
+      {hasSelection ? rating!.toFixed(2) : "—"}
     </span>
   </div>
 
@@ -99,7 +103,11 @@
     <div class="rating-track-inner" class:is-dragging={dragging}>
       {#if hasSelection}
         <div class="rating-fill" style="width: {percent}%"></div>
-        <div class="rating-thumb" class:is-dragging={dragging} style="left: {percent}%"></div>
+        <div
+          class="rating-thumb"
+          class:is-dragging={dragging}
+          style="left: {percent}%"
+        ></div>
       {/if}
     </div>
   </button>
@@ -199,7 +207,9 @@
     border-radius: 999px;
     transform: translate(-50%, -50%);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    transition: left 120ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition:
+      left 120ms ease,
+      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .rating-thumb.is-dragging {

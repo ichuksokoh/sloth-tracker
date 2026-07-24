@@ -1,47 +1,55 @@
 <script lang="ts">
-    import type { Manhwa } from '@/types'
+  import type { Manhwa } from "@/types";
 
-    let { manhwa, onSelect }: { manhwa: Manhwa; onSelect: (chapterNumber: number) => void } =
-    $props()
+  let {
+    manhwa,
+    onSelect,
+  }: { manhwa: Manhwa; onSelect: (chapterNumber: number) => void } = $props();
 
-    let open = $state(false)
-    let panelEl = $state<HTMLElement | null>(null)
-    let triggerEl = $state<HTMLElement | null>(null)
+  let open = $state(false);
+  let panelEl = $state<HTMLElement | null>(null);
+  let triggerEl = $state<HTMLElement | null>(null);
 
-    let currentChapterLabel = $derived(
+  let currentChapterLabel = $derived(
     manhwa.chapters.find((c) => c.number === manhwa.currentChapter)?.label ??
-        `Ch. ${manhwa.chapters[0].label}`
-    )
+      `Ch. ${manhwa.chapters[0].label}`,
+  );
 
-    function toggle() {
-    open = !open
-    }
+  function toggle() {
+    open = !open;
+  }
 
-    function select(chapterNumber: number) {
-    onSelect(chapterNumber)
-    open = false
-    }
+  function select(chapterNumber: number) {
+    onSelect(chapterNumber);
+    open = false;
+  }
 
-    // Close when clicking anywhere outside the trigger/panel
-    function handleWindowClick(e: MouseEvent) {
-    if (!open) return
-    const target = e.target as Node
-    if (panelEl?.contains(target) || triggerEl?.contains(target)) return
-    open = false
-    }
+  // Close when clicking anywhere outside the trigger/panel
+  function handleWindowClick(e: MouseEvent) {
+    if (!open) return;
+    const target = e.target as Node;
+    if (panelEl?.contains(target) || triggerEl?.contains(target)) return;
+    open = false;
+  }
 
-    // Scroll the active chapter into view whenever the panel opens
-    $effect(() => {
+  // Scroll the active chapter into view whenever the panel opens
+  $effect(() => {
     if (open && panelEl) {
-        const activeEl = panelEl.querySelector('.chapter-row.is-active') as HTMLElement | null
-        if (activeEl) {
-        const panelRect = panelEl.getBoundingClientRect()
-        const activeRect = activeEl.getBoundingClientRect()
-        const offsetWithinPanel = activeRect.top - panelRect.top + panelEl.scrollTop
-        panelEl.scrollTop = offsetWithinPanel - panelEl.clientHeight / 2 + activeEl.clientHeight / 2
-        }
+      const activeEl = panelEl.querySelector(
+        ".chapter-row.is-active",
+      ) as HTMLElement | null;
+      if (activeEl) {
+        const panelRect = panelEl.getBoundingClientRect();
+        const activeRect = activeEl.getBoundingClientRect();
+        const offsetWithinPanel =
+          activeRect.top - panelRect.top + panelEl.scrollTop;
+        panelEl.scrollTop =
+          offsetWithinPanel -
+          panelEl.clientHeight / 2 +
+          activeEl.clientHeight / 2;
+      }
     }
-    })
+  });
 </script>
 
 <svelte:window onclick={handleWindowClick} />
@@ -54,8 +62,14 @@
     onclick={toggle}
   >
     <span class="trigger-label">{currentChapterLabel}</span>
-    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="18 15 12 9 6 15" />
+    <svg
+      class="chevron"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+    >
+      <polyline points="18 15 12 9 6 15" />
     </svg>
   </button>
 
@@ -69,7 +83,13 @@
         >
           <span>{chapter.label}</span>
           {#if (chapter.number === manhwa.currentChapter && chapter.read) || chapter.read}
-            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <svg
+              class="check"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
               <polyline points="20 6 9 17 4 12" />
             </svg>
           {/if}
@@ -99,7 +119,9 @@
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease;
   }
 
   .trigger:hover {
@@ -184,7 +206,7 @@
     min-width: 0;
     gap: 8px;
   }
-  
+
   .chapter-row span {
     flex: 1;
     min-width: 0;

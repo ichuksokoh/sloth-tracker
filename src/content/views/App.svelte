@@ -1,70 +1,67 @@
 <script lang="ts">
-  import { manhwaStore } from '@/lib/manhwaStore.svelte'
-  import type { Manhwa, ScrapedManhwa } from '@/types'
-  import AlertBox from '@/components/AlertBox.svelte'
-  import ViewLib from '@/content/views/ViewLib.svelte'
-  import { looksLikeSeriesPage, scrapeCurrentPage } from '@/lib/scraper';
-  import { updateExistingManhwa } from '@/lib/updateManhwaLib.svelte';
-  import { onMount, tick } from 'svelte';
+  import { manhwaStore } from "@/lib/manhwaStore.svelte";
+  import type { Manhwa, ScrapedManhwa } from "@/types";
+  import AlertBox from "@/components/AlertBox.svelte";
+  import ViewLib from "@/content/views/ViewLib.svelte";
+  import { looksLikeSeriesPage, scrapeCurrentPage } from "@/lib/scraper";
+  import { updateExistingManhwa } from "@/lib/updateManhwaLib.svelte";
+  import { onMount, tick } from "svelte";
 
   // let { scraped, existingManhwaId }: { scraped: ScrapedManhwa; existingManhwaId: string | null } =
   //   $props()
 
-  let show = $state(false)
-  let added = $state(true)
-  let loading = $state(false)
-  let error = $state<string | null>(null)
-  let scraped = $state(scrapeCurrentPage())
-  let existingManhwaId = $state<string | null>(null)
-  let dismissed = $state(false)
-  let mounted = $state(false) 
+  let show = $state(false);
+  let added = $state(true);
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+  let scraped = $state(scrapeCurrentPage());
+  let existingManhwaId = $state<string | null>(null);
+  let dismissed = $state(false);
+  let mounted = $state(false);
+  let libOpen = $state(false);
 
   $effect(() => {
     const loadExisting = async () => {
-
       if (!scraped.title) {
-        existingManhwaId = null
-        return
+        existingManhwaId = null;
+        return;
       }
 
       const [byTitle, byUrl] = await Promise.all([
         manhwaStore.getManhwaByTitleOnHost(scraped.title, scraped.sourceUrl),
         manhwaStore.getManhwaBySourceUrl(scraped.sourceUrl),
-      ])
+      ]);
 
       if (byTitle) {
-        await updateExistingManhwa(scraped, scraped.sourceUrl)
+        await updateExistingManhwa(scraped, scraped.sourceUrl);
       } else if (byUrl) {
-        await updateExistingManhwa(scraped, scraped.sourceUrl)
+        await updateExistingManhwa(scraped, scraped.sourceUrl);
       }
 
-      existingManhwaId = byUrl?.id ?? byTitle?.id ?? null
-      added = existingManhwaId !== null
-    }
+      existingManhwaId = byUrl?.id ?? byTitle?.id ?? null;
+      added = existingManhwaId !== null;
+    };
 
-    void loadExisting()
+    void loadExisting();
     //     tick().then(() => {
     //     mounted = true
     // })
-
-  })
+  });
 
   onMount(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        mounted = true
-      })
-    })
-  })
-
-
+        mounted = true;
+      });
+    });
+  });
 
   async function addManhwa() {
-    if (added || loading) return
-    loading = true
-    error = null
-    scraped = scrapeCurrentPage()
-    if (!scraped) return
+    if (added || loading) return;
+    loading = true;
+    error = null;
+    scraped = scrapeCurrentPage();
+    if (!scraped) return;
     try {
       const manhwa: Manhwa = {
         id: crypto.randomUUID(),
@@ -72,34 +69,44 @@
         sourceUrl: scraped.sourceUrl,
         coverUrl: scraped.coverUrl ?? undefined,
         description: scraped.description ?? undefined,
-        status: 'Plan To Read',
-        currentChapter: scraped.chapters.length > 0 ? scraped.chapters[0].number : 0,
+        status: "Plan To Read",
+        currentChapter:
+          scraped.chapters.length > 0 ? scraped.chapters[0].number : 0,
         totalChapters: scraped.latestChapter ?? undefined,
         chapters: scraped.chapters,
         tags: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
-      }
+      };
 
-      await manhwaStore.add(manhwa)
-      
       if (manhwa.coverUrl) {
         const response = await chrome.runtime.sendMessage({
-          type: 'cache-cover',
+          type: "cache-cover",
           id: manhwa.id,
           url: manhwa.coverUrl,
           title: manhwa.title,
-        })
+        });
         if (!response?.ok) {
-          console.warn('[background] failed to cache cover for', manhwa.title)
+          console.warn("[background] failed to cache cover for", manhwa.title);
         }
       }
-      added = true
+
+      const tagsResponse = await chrome.runtime.sendMessage({
+        type: "fetch-anilist-tags",
+        title: manhwa.title,
+      });
+
+      if (tagsResponse?.ok && tagsResponse?.tags) {
+        manhwa.tags = tagsResponse.tags;
+      }
+
+      await manhwaStore.add(manhwa);
+      added = true;
     } catch (e) {
-      error = 'Failed to add — try again'
-      console.error('[manhwa tracker] add failed', e)
+      error = "Failed to add — try again";
+      console.error("[manhwa tracker] add failed", e);
     } finally {
-      loading = false
+      loading = false;
     }
   }
 </script>
@@ -114,11 +121,29 @@
 >
   <span class="title-add">{scraped?.title}</span>
 </AlertBox>
-<div class="pill-group" class:dismissed={dismissed} class:ready={mounted}>
+<div
+  class="pill-group"
+  class:dismissed={dismissed || !libOpen}
+  class:ready={mounted}
+>
   {#if !added}
     <div class="popup-container">
-      <button class="toggle-button" onclick={(event) => {event.stopPropagation(); (show = !show)}}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="add-icon">
+      <button
+        class="toggle-button"
+        onclick={(event) => {
+          event.stopPropagation();
+          show = !show;
+        }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="add-icon"
+        >
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
@@ -127,16 +152,28 @@
     </div>
   {/if}
   {#if existingManhwaId}
-    <ViewLib manhwaId={existingManhwaId} bind:dismissed={dismissed} />
+    <ViewLib manhwaId={existingManhwaId} bind:dismissed bind:libOpen />
   {/if}
-  <button class="dismiss-btn" aria-label="Dismiss Button" onclick={(event) => { event.stopPropagation(); dismissed = true }}>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+  <button
+    class="dismiss-btn"
+    aria-label="Dismiss Button"
+    onclick={(event) => {
+      event.stopPropagation();
+      dismissed = true;
+    }}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   </button>
 </div>
-
 
 <style>
   .pill-group {
@@ -151,27 +188,29 @@
     font-family: ui-sans-serif, system-ui, sans-serif;
     user-select: none;
     line-height: 1;
-    display:flex;
+    display: flex;
     flex-direction: row;
     align-items: center;
     height: 50px;
     opacity: 0;
     pointer-events: none;
     transform: translateX(-100%);
-    transition: transform 500ms ease-out, opacity 500ms ease-out;
+    transition:
+      transform 500ms ease-out,
+      opacity 500ms ease-out;
   }
 
   .pill-group.ready {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(0) ; 
+    transform: translateX(0);
     /* transition: transform 500ms ease-in, opacity 500ms ease-in; */
   }
 
   .pill-group.dismissed {
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-100%) ;
+    transform: translateX(-100%);
     /* transition: transform 500ms ease-in, opacity 500ms ease-in; */
   }
   .popup-container {
@@ -209,7 +248,10 @@
     background: linear-gradient(0, #a157dd72, #4338ca);
     padding: 0;
     flex-shrink: 0; /* prevent flex from squishing the button if content is wide */
-    transition: background-color 550ms ease, box-shadow 150ms ease, scale 120ms ease-in-out;
+    transition:
+      background-color 550ms ease,
+      box-shadow 150ms ease,
+      scale 120ms ease-in-out;
   }
 
   .toggle-button:active {
@@ -253,14 +295,18 @@
     border: none;
     /* z-index: 110; */
     /* padding: 0 10px; */
-    transition: background-color 200ms ease-in-out, transform 200ms ease-in-out;
+    transition:
+      background-color 200ms ease-in-out,
+      transform 200ms ease-in-out;
   }
 
   .dismiss-btn:hover {
     transform: rotate(-90deg) scale(1.1);
     background-color: rgba(248, 113, 113, 0.15);
     color: #f87171;
-    transition: background-color 200ms ease-in-out, transform 200ms ease-in-out;
+    transition:
+      background-color 200ms ease-in-out,
+      transform 200ms ease-in-out;
   }
 
   .dismiss-btn:active {

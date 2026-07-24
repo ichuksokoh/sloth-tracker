@@ -3,17 +3,29 @@
     description,
     open,
     onToggle,
-  }: { description: string; open: boolean; onToggle: (next: boolean) => void } = $props()
+  }: { description: string; open: boolean; onToggle: (next: boolean) => void } =
+    $props();
 
   function toggle() {
-    onToggle(!open)
+    onToggle(!open);
   }
 </script>
 
 <div class="drawer">
-  <button class="drawer-trigger" class:is-open={open} onclick={toggle} aria-expanded={open}>
+  <button
+    class="drawer-trigger"
+    class:is-open={open}
+    onclick={toggle}
+    aria-expanded={open}
+  >
     <span>Description</span>
-    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <svg
+      class="chevron"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+    >
       <polyline points="6 9 12 15 18 9" />
     </svg>
   </button>

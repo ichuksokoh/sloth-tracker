@@ -1,45 +1,49 @@
 <script lang="ts">
   import type { Manhwa } from "@/types";
 
-    interface ProgressBarProps {
-        manhwa: Manhwa
-        isCard?: boolean
-    }
-
-  let { manhwa, isCard = false }: ProgressBarProps = $props()
-  const round = (num: number, decimals: number) => {
-    const factor = Math.pow(10, decimals)
-    return Math.round(num * factor) / factor
+  interface ProgressBarProps {
+    manhwa: Manhwa;
+    isCard?: boolean;
   }
-  let total = $derived(manhwa.totalChapters ?? manhwa.chapters.length)
-  let current = $derived(manhwa.currentChapter)
+
+  let { manhwa, isCard = false }: ProgressBarProps = $props();
+  const round = (num: number, decimals: number) => {
+    const factor = Math.pow(10, decimals);
+    return Math.round(num * factor) / factor;
+  };
+  let total = $derived(manhwa.totalChapters ?? manhwa.chapters.length);
+  let current = $derived(manhwa.currentChapter);
   let currentLabel = $derived(
-    manhwa.chapters.find((c) => c.number === current)?.label ?? `Ch. ${current}`
-  )
+    manhwa.chapters.find((c) => c.number === current)?.label ??
+      `Ch. ${current}`,
+  );
   let totalLabel = $derived(
     manhwa.totalChapters
-      ? manhwa.chapters.find((c) => c.number === total)?.label ?? `Ch. ${total}`
-      : undefined
-  )
+      ? (manhwa.chapters.find((c) => c.number === total)?.label ??
+          `Ch. ${total}`)
+      : undefined,
+  );
   let percent = $derived(
-    total && total > 0 && manhwa.chapters.filter(c => c.read).length > 0 ? Math.min(100, round((current / total) * 100, 1)) : 0
-  )
+    total && total > 0 && manhwa.chapters.filter((c) => c.read).length > 0
+      ? Math.min(100, round((current / total) * 100, 1))
+      : 0,
+  );
 </script>
 
 <div class="progress-wrap">
   <div class="progress-header">
-  {#if !isCard}
-    <span class="progress-label">
+    {#if !isCard}
+      <span class="progress-label">
+        {#if total}
+          {currentLabel} of {totalLabel}
+        {:else}
+          {currentLabel}
+        {/if}
+      </span>
       {#if total}
-        {currentLabel} of {totalLabel}
-      {:else}
-        {currentLabel} 
+        <span class="progress-percent">{percent}%</span>
       {/if}
-    </span>
-    {#if total}
-      <span class="progress-percent">{percent}%</span>
     {/if}
-  {/if}
   </div>
 
   <div class="progress-track" class:card={isCard}>

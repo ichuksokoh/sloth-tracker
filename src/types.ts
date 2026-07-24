@@ -37,3 +37,35 @@ export interface Manhwa {
 }
 
 
+// Anilist API data types (for the "import from Anilist" feature)// types.ts
+export interface MediaTag {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  rank: number;
+  isMediaSpoiler: boolean;
+  isGeneralSpoiler: boolean;
+  isAdult: boolean;
+}
+
+export interface MediaTitle {
+  romaji?: string;
+  english?: string;
+  native?: string;
+}
+
+export interface MediaResult {
+  id: number;
+  title: MediaTitle;
+  format: string;
+  countryOfOrigin: string;
+  genres: string[];
+  tags: MediaTag[];
+}
+
+export interface AniListResponse {
+  data: {
+    Media: MediaResult | null;
+  };
+}

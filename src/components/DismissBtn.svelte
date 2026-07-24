@@ -1,9 +1,15 @@
 <script lang="ts">
-  let { onDismiss }: { onDismiss: () => void } = $props()
+  let { onDismiss }: { onDismiss: () => void } = $props();
 </script>
 
 <button class="dismiss-btn" onclick={onDismiss} aria-label="Dismiss">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    stroke-linecap="round"
+  >
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
@@ -26,7 +32,9 @@
     border-bottom-right-radius: 9999px;
     color: rgba(226, 232, 240, 0.6);
     cursor: pointer;
-    transition: background-color 150ms ease, color 150ms ease;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
   }
 
   .dismiss-btn svg {

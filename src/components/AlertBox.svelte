@@ -1,44 +1,43 @@
-<!-- src/components/AlertBox.svelte -->
 <script lang="ts">
-  import type { Snippet } from 'svelte'
+  import type { Snippet } from "svelte";
 
   let {
     open = $bindable(false),
     title,
     children,
     onConfirm,
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel',
-    confirmColorFrom = '#4338ca',
-    confirmColorTo = '#3730a3',
+    confirmLabel = "Confirm",
+    cancelLabel = "Cancel",
+    confirmColorFrom = "#4338ca",
+    confirmColorTo = "#3730a3",
     showCancel = true,
   }: {
-    open?: boolean
-    title?: string
-    children: Snippet
-    onConfirm?: () => void
-    confirmLabel?: string
-    cancelLabel?: string
-    confirmColorFrom?: string
-    confirmColorTo?: string
-    showCancel?: boolean
-  } = $props()
+    open?: boolean;
+    title?: string;
+    children: Snippet;
+    onConfirm?: () => void;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    confirmColorFrom?: string;
+    confirmColorTo?: string;
+    showCancel?: boolean;
+  } = $props();
 
   function close() {
-    open = false
+    open = false;
   }
 
   function confirm() {
-    onConfirm?.()
-    close()
+    onConfirm?.();
+    close();
   }
 
   function handleBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) close()
+    if (e.target === e.currentTarget) close();
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') close()
+    if (e.key === "Escape") close();
   }
 </script>
 
@@ -46,7 +45,12 @@
 
 {#if open}
   <div class="backdrop" onclick={handleBackdropClick} role="presentation">
-    <div class="panel" role="dialog" aria-modal="true" aria-labelledby={title ? 'alert-title' : undefined}>
+    <div
+      class="panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? "alert-title" : undefined}
+    >
       {#if title}
         <h2 id="alert-title">{title}</h2>
       {/if}
@@ -124,7 +128,10 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 140ms ease, filter 140ms ease, border-color 140ms ease;
+    transition:
+      transform 140ms ease,
+      filter 140ms ease,
+      border-color 140ms ease;
   }
 
   .btn:active {
@@ -153,8 +160,12 @@
   }
 
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes panel-in {
