@@ -1,24 +1,19 @@
 <script lang="ts">
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
-  import type { Manhwa, ScrapedManhwa } from "@/types";
   import AlertBox from "@/components/AlertBox.svelte";
   import ViewLib from "@/content/views/ViewLib.svelte";
-  import { looksLikeSeriesPage, scrapeCurrentPage } from "@/lib/scraper";
+  import { scrapeCurrentPage } from "@/lib/scraper";
   import { updateExistingManhwa } from "@/lib/updateManhwaLib.svelte";
-  import { onMount, tick } from "svelte";
-
-  // let { scraped, existingManhwaId }: { scraped: ScrapedManhwa; existingManhwaId: string | null } =
-  //   $props()
+  import { onMount } from "svelte";
 
   let show = $state(false);
   let added = $state(true);
   let loading = $state(false);
-  let error = $state<string | null>(null);
   let scraped = $state(scrapeCurrentPage());
   let existingManhwaId = $state<string | null>(null);
   let dismissed = $state(false);
   let mounted = $state(false);
-  let libOpen = $state(false);
+  let libOpen = $state(true);
 
   $effect(() => {
     const loadExisting = async () => {
@@ -29,7 +24,7 @@
 
       const [byTitle, byUrl] = await Promise.all([
         manhwaStore.getManhwaByTitleOnHost(scraped.title, scraped.sourceUrl),
-        manhwaStore.getManhwaBySourceUrl(scraped.sourceUrl),
+        manhwaStore.getManhwaBySourceUrl(scraped.sourceUrl)
       ]);
 
       if (byTitle) {
@@ -43,9 +38,6 @@
     };
 
     void loadExisting();
-    //     tick().then(() => {
-    //     mounted = true
-    // })
   });
 
   onMount(() => {
@@ -59,51 +51,13 @@
   async function addManhwa() {
     if (added || loading) return;
     loading = true;
-    error = null;
+
     scraped = scrapeCurrentPage();
     if (!scraped) return;
     try {
-      const manhwa: Manhwa = {
-        id: crypto.randomUUID(),
-        title: scraped.title,
-        sourceUrl: scraped.sourceUrl,
-        coverUrl: scraped.coverUrl ?? undefined,
-        description: scraped.description ?? undefined,
-        status: "Plan To Read",
-        currentChapter:
-          scraped.chapters.length > 0 ? scraped.chapters[0].number : 0,
-        totalChapters: scraped.latestChapter ?? undefined,
-        chapters: scraped.chapters,
-        tags: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      if (manhwa.coverUrl) {
-        const response = await chrome.runtime.sendMessage({
-          type: "cache-cover",
-          id: manhwa.id,
-          url: manhwa.coverUrl,
-          title: manhwa.title,
-        });
-        if (!response?.ok) {
-          console.warn("[background] failed to cache cover for", manhwa.title);
-        }
-      }
-
-      const tagsResponse = await chrome.runtime.sendMessage({
-        type: "fetch-anilist-tags",
-        title: manhwa.title,
-      });
-
-      if (tagsResponse?.ok && tagsResponse?.tags) {
-        manhwa.tags = tagsResponse.tags;
-      }
-
-      await manhwaStore.add(manhwa);
+      await manhwaStore.add(scraped);
       added = true;
     } catch (e) {
-      error = "Failed to add — try again";
       console.error("[manhwa tracker] add failed", e);
     } finally {
       loading = false;
@@ -121,11 +75,7 @@
 >
   <span class="title-add">{scraped?.title}</span>
 </AlertBox>
-<div
-  class="pill-group"
-  class:dismissed={dismissed || !libOpen}
-  class:ready={mounted}
->
+<div class="pill-group" class:dismissed={dismissed || !libOpen} class:ready={mounted}>
   {#if !added}
     <div class="popup-container">
       <button
@@ -162,13 +112,7 @@
       dismissed = true;
     }}
   >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.5"
-      stroke-linecap="round"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>

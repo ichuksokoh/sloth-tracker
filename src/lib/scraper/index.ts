@@ -9,10 +9,11 @@ export function scrapeCurrentPage(): ScrapedManhwa {
 
   const base = scrapeGeneric(document, url);
   const chapters = extractChapters(document, url);
+  const latestChapter = chapters.length
   const adapterKey = Object.keys(adapters).find((key) => hostname.includes(key));
   const override = adapterKey ? adapters[adapterKey](document, url) : {};
 
-  return { ...base, chapters, ...override };
+  return { ...base, chapters, latestChapter, ...override };
 }
 
 // Finds the index of the segment that represents "this specific chapter" —

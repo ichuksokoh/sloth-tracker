@@ -1,4 +1,4 @@
-import type { Manhwa } from "@/types";
+import type { Manhwa, ScrapedManhwa } from "@/types";
 import { stringSimilarity } from "./titleMatch";
 import { deleteCachedCover } from "./coverCache.svelte";
 
@@ -34,14 +34,15 @@ export const manhwaStore = {
   get list() {
     return list;
   },
-  async add(item: Manhwa) {
+  async add(item: ScrapedManhwa) {
+    console.log("[content] adding new manhwa:", item.title);
     await chrome.runtime.sendMessage({ type: "manhwa:add", manhwa: item });
   },
   async update(id: string, patch: Partial<Manhwa>) {
     await chrome.runtime.sendMessage({ type: "manhwa:update", id, manhwa: patch });
   },
   async remove(id: string) {
-    await chrome.runtime.sendMessage({ type: "manhwa:remove", id})
+    await chrome.runtime.sendMessage({ type: "manhwa:remove", id });
   },
   async getById(id: string) {
     return list.find((m) => m.id === id);

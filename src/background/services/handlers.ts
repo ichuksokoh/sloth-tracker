@@ -1,14 +1,10 @@
 import { cacheCover } from "@/lib/coverCache.svelte";
 import { fetchMangadexCover } from "@/background/services/mangadex";
-import { fetchMangaTags } from "@/background/services/anilist";
 import * as manhwaDB from "@/lib/manhwaDataAccess";
 
-export const messageHandlers: Record<
-  string,
-  (msg: any, sender: chrome.runtime.MessageSender) => Promise<any>
-> = {
+export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.MessageSender) => Promise<any>> = {
+  // Only kept cache-cover for future uploading of alternative images if implemented
   "cache-cover": async (msg) => {
-    // Keeps its own try/catch because of the specific fallback logic
     try {
       const res = await fetch(msg.url);
       if (!res.ok) throw new Error(`${res.status}`);
@@ -53,13 +49,6 @@ export const messageHandlers: Record<
     return { ok: true, id: res.selectedManhwaId ?? null };
   },
 
-  "fetch-anilist-tags": async (msg) => {
-    const media = await fetchMangaTags(msg.title);
-    console.log("[background] fetched AniList tags for", msg.title, media);
-    return { ok: true, tags: media?.genres };
-  },
-
-  // Notice how clean these DB operations become as one-liners
   "manhwa:add": async (msg) => {
     await manhwaDB.addManhwa(msg.manhwa);
     return { ok: true };

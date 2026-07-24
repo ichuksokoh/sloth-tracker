@@ -63,14 +63,28 @@
   // Handling of Chapter Selection and Status Update
   function handleChapterSelect(chapterNumber: number) {
     if (selectedManhwa) {
-      const chapters = selectedManhwa.chapters.map((chp) =>
-        chp.number <= chapterNumber ? { ...chp, read: true } : { ...chp, read: false }
-      );
+      let falsePrior = true;
+      const chapters = selectedManhwa.chapters.map((chp) => {
+        if (chp.number <= chapterNumber) {
+          if (chp.number === chapterNumber && chp.read) {
+            falsePrior = false;
+          }
+          return { ...chp, read: true };
+        }
+        return { ...chp, read: false };
+      });
+
+      const finalChapters = chapters.map((chp) => {
+        if (chp.number === chapterNumber && !falsePrior) {
+          return { ...chp, read: false };
+        }
+        return chp;
+      });
 
       manhwaStore.update(selectedManhwa.id, {
         currentChapter: chapterNumber,
         status: "Reading",
-        chapters: chapters
+        chapters: finalChapters
       });
     }
   }
