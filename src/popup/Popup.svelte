@@ -2,13 +2,14 @@
   import type { Manhwa } from "@/types";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import { setSelectedManhwa } from "@/lib/selectedManhwa.svelte";
-  import * as queries from "@/lib/searchParams.svelte";
+  import * as fields from "@/lib/storageField";
   import { stringSimilarity } from "@/lib/titleMatch";
   import Card from "@/components/Card.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
   import FavoriteButton from "@/components/FavoriteButton.svelte";
   import HideButton from "@/components/HideButton.svelte";
   import AlertBox from "@/components/AlertBox.svelte";
+  import SortByDropdown from "@/components/SortByDropdown.svelte";
   import { deleteCachedCover } from "@/lib/coverCache.svelte";
 
   let searchQuery = $state("");
@@ -16,9 +17,20 @@
   let isSearching = $state(false); // true during the "waiting to settle" window
   let status = $state("All"); // 'All', 'Reading', 'Plan To Read', 'Completed', 'Dropped'
   const statusValues = ["All", "Plan To Read", "Reading", "Completed", "Dropped"] as const;
+  const sortByOptions = ["Ascending", "Descending", "Recently Added", "Recently Updated", "Rating", "Progress"];
+  const sortByDict: Record<string, (a: Manhwa, b: Manhwa) => number> = {
+    Ascending: (a, b) => a.title.localeCompare(b.title),
+    Descending: (a, b) => b.title.localeCompare(a.title),
+    "Recently Added": (a, b) => b.createdAt - a.createdAt,
+    "Recently Updated": (a, b) => b.updatedAt - a.updatedAt,
+    Rating: (a, b) => (b.rating ? (a.rating ? b.rating - a.rating : 1) : a.rating ? -1 : 0), // Checks if b has a rating, if not, check if a has a rating, if not, return 0
+    Progress: (a, b) => b.currentChapter - a.currentChapter
+  };
+
   let showFavoritesOnly = $state(false);
   let hideManwhaCount = $state(false); // hide the total manhwa count in the popup view
   let showHiddenOnly = $state(false); // show only hidden manhwa
+  let sortBy = $state("Ascending"); // default sort by option
 
   // Front-end Client side filtering of the manhwa list based on search query, status filter, and favorites filter
   let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -32,7 +44,7 @@
     searchDebounceTimer = setTimeout(() => {
       debouncedQuery = value;
       isSearching = false;
-      queries.setSearchQuery(value); // persist to session storage once settled
+      fields.searchQuery.set(value); // persist to session storage once settled
     }, 250);
   }
 
@@ -44,76 +56,80 @@
     const hiddenMatches = showHiddenOnly ? a.hidden : !a.hidden;
     return (titleSim >= 0.6 || titleIncludes) && statusMatches && favoriteMatches && hiddenMatches;
   };
-  let filtered = $derived(
-    manhwaStore.list.filter((m) => compare(m)).sort((a, b) => a.title.localeCompare(b.title))
-  );
+  let filtered = $derived(manhwaStore.list.filter((m) => compare(m)).sort((a, b) => sortByDict[sortBy](a, b)));
 
   function handleStatusSelect(label: string) {
     status = label;
-    queries.setStatusFilter(label);
+    fields.statusFilter.set(label);
   }
 
   function handleShowFavoritesToggle() {
     showFavoritesOnly = !showFavoritesOnly;
-    queries.setShowFavoritesOnly(showFavoritesOnly);
+    fields.showFavoritesOnly.set(showFavoritesOnly);
   }
 
   function handleShowHiddenToggle() {
     showHiddenOnly = !showHiddenOnly;
-    queries.setHiddenFilter(showHiddenOnly);
+    fields.hiddenFilter.set(showHiddenOnly);
   }
 
   function handleHideCounts() {
     hideManwhaCount = !hideManwhaCount;
-    queries.setHiddenManhwaCount(hideManwhaCount);
+    fields.toggleManhwaCount.set(hideManwhaCount);
+  }
+
+  function handleSortByOption(option: string) {
+    sortBy = option;
+    fields.sortByOption.set(option);
   }
 
   // Handle persistance of search queries, show favorites only, and status filter in Chrome storage
   // hydration from storage now needs to set both variables together
   $effect(() => {
-    queries.getSearchQuery().then((q) => {
+    fields.searchQuery.get().then((q) => {
       searchQuery = q;
       debouncedQuery = q;
     });
-    queries.getShowFavoritesOnly().then((fav) => {
-      showFavoritesOnly = fav;
+    fields.showFavoritesOnly.get().then((v) => {
+      showFavoritesOnly = v;
     });
-    queries.getStatusFilter().then((s) => {
-      status = s;
+    fields.statusFilter.get().then((v) => {
+      status = v;
     });
-    queries.getHiddenFilter().then((h) => {
-      showHiddenOnly = h;
+    fields.hiddenFilter.get().then((v) => {
+      showHiddenOnly = v;
     });
-    queries.getHiddenManhwaCount().then((h) => {
-      hideManwhaCount = h;
+    fields.toggleManhwaCount.get().then((v) => {
+      hideManwhaCount = v;
+    });
+    fields.sortByOption.get().then((v) => {
+      sortBy = v;
     });
   });
 
-  queries.onSearchQueryChange((q) => {
+  fields.searchQuery.onChange((q) => {
     searchQuery = q;
     debouncedQuery = q;
   });
-
-  queries.onShowFavoritesOnlyChange((fav) => {
-    showFavoritesOnly = fav;
+  fields.showFavoritesOnly.onChange((v) => {
+    showFavoritesOnly = v;
   });
-
-  queries.onStatusFilterChange((s) => {
-    status = s;
+  fields.statusFilter.onChange((v) => {
+    status = v;
   });
-
-  queries.onHiddenFilterChange((h) => {
-    showHiddenOnly = h;
+  fields.hiddenFilter.onChange((v) => {
+    showHiddenOnly = v;
   });
-
-  queries.onHiddenManhwaCountChange((h) => {
-    hideManwhaCount = h;
+  fields.toggleManhwaCount.onChange((v) => {
+    hideManwhaCount = v;
   });
-
+  fields.sortByOption.onChange((v) => {
+    sortBy = v;
+  });
   //Clear Query button logic
   let queryNotEmpty = $derived(debouncedQuery.trim().length > 0);
   async function clearSearch() {
-    queries.setSearchQuery("");
+    fields.searchQuery.set("");
   }
 
   // Open side Panel for Manhwa Info and Chapter Selection
@@ -184,8 +200,6 @@
   </header>
   <nav class="status-nav">
     <StatusBar labels={statusValues} selected={status} onSelect={handleStatusSelect} />
-    <FavoriteButton favorite={showFavoritesOnly} onToggle={handleShowFavoritesToggle} forStatus={true} size={26} />
-    <HideButton hidden={showHiddenOnly} onToggle={handleShowHiddenToggle} forStatus={true} size={26} />
     <button
       class="select-mode-toggle"
       class:is-active={selectMode}
@@ -204,6 +218,11 @@
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
     </button>
+  </nav>
+  <nav class="filter-nav">
+    <SortByDropdown options={sortByOptions} onSelect={handleSortByOption} currentSelection={sortBy} />
+    <FavoriteButton favorite={showFavoritesOnly} onToggle={handleShowFavoritesToggle} forStatus={true} size={32} />
+    <HideButton hidden={showHiddenOnly} onToggle={handleShowHiddenToggle} forStatus={true} size={32} />
   </nav>
   <main class="grid-scroll">
     {#if isSearching}
@@ -309,7 +328,7 @@
     height: 480px;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, #0f172a 0%, #131b2e 100%);
+    background: linear-gradient(180deg, #0f172a 0%, #3d4aa66f, 50%, #162244cb 100%);
     font-family: ui-sans-serif, system-ui, sans-serif;
     color: #e2e8f0;
     overflow: hidden;
@@ -321,7 +340,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 14px 16px 12px;
+    margin: 14px 16px 10px;
     padding: 10px 14px;
     background: #1e293b;
     border: 1px solid #334155;
@@ -456,8 +475,18 @@
     flex-direction: row;
     align-items: center;
     gap: 8px;
-    padding: 0 16px 12px;
+    padding: 0 16px 8px;
   }
+
+  .filter-nav {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 5px;
+  }
+
   .grid-scroll {
     flex: 1;
     overflow-y: auto;
@@ -585,13 +614,14 @@
 
   .select-mode-toggle:hover {
     border-color: #475569;
-    color: #cbd5e1;
+    color: #e24e4e;
   }
 
   .select-mode-toggle.is-active {
-    background: rgba(99, 102, 241, 0.15);
+    background: rgba(26, 27, 32, 0.562);
     border-color: rgba(129, 140, 248, 0.5);
-    color: #a5b4fc;
+    color: #cc7c7c;
+    /* color: #a5b4fc; */
   }
 
   .bulk-bar {

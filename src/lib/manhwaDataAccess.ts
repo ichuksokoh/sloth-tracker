@@ -8,6 +8,7 @@ import { fetchMangadexCover } from "@/background/services/mangadex";
 const MANHWA_KEY = "manhwaList";
 const RECENTLY_DELETED_KEY = "recentlyDeletedManhwa";
 const RECENTLY_DELETED_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const Excludetags = ["Wuxia", "Long Strip", "Full Color", "Male Protagonist", "Female Protagonist"];
 
 async function readManhwaList(): Promise<Manhwa[]> {
   const res = await chrome.storage.local.get({ [MANHWA_KEY]: [] });
@@ -65,7 +66,7 @@ async function reviveManhwa(scraped: ScrapedManhwa): Promise<Manhwa | null> {
       revivedChps = [...finalMatch.chapters, ...scraped.chapters.slice(finalMatch.chapters.length)];
     }
     const latestChpater =
-      scraped.latestChapter === revivedChps.length ? scraped.latestChapter : revivedChps.length;
+      scraped.totalChapters === revivedChps.length ? scraped.totalChapters : revivedChps.length;
     const partiallyRestored = {
       ...finalMatch,
       createdAt: Date.now(),
@@ -94,7 +95,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
     description: scraped.description ?? undefined,
     status: "Plan To Read",
     currentChapter: scraped.chapters.length > 0 ? scraped.chapters[0].number : 0,
-    totalChapters: scraped.latestChapter ?? undefined,
+    totalChapters: scraped.totalChapters ?? undefined,
     chapters: scraped.chapters,
     tags: [],
     createdAt: Date.now(),
@@ -120,8 +121,18 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
 
   try {
     const aniListMedia = await fetchMangaTags(manhwa.title);
+    console.log("[background] fetched AniList tags for", manhwa.title, aniListMedia);
     if (aniListMedia?.genres) {
       manhwa.tags = aniListMedia.genres;
+    }
+    if (aniListMedia?.tags) {
+      const excludedTags = Excludetags.map((tag) => tag.toLowerCase().replace('-', ' '));
+      const filteredTags = aniListMedia.tags
+        .filter((tag) => 
+          !excludedTags.includes(tag.name.toLowerCase().replace('-', ' ')) &&
+          !tag.isAdult && !tag.isMediaSpoiler).map((tag) => tag.name);
+      manhwa.tags = [...new Set([...manhwa.tags, ...filteredTags])];
+      manhwa.tags.sort((a, b) => a.localeCompare(b));
     }
   } catch (err) {
     console.error("[background] failed to fetch AniList tags for", manhwa.title, err);

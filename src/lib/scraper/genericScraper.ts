@@ -138,7 +138,7 @@ export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, "
     title,
     coverUrl: extractImage(doc) || getMeta(doc, "og:image") || null,
     description: extractDescription(doc, title),
-    latestChapter: extractLatestChapter(doc, url),
+    totalChapters: extractLatestChapter(doc, url),
     sourceUrl: url
   };
 }

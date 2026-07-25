@@ -14,6 +14,8 @@
   import RatingBar from "@/components/RatingBar.svelte";
   import GoToBtn from "@/components/GoToBtn.svelte";
   import AlertBox from "@/components/AlertBox.svelte";
+  import Tag from "@/components/Tag.svelte";
+  import InfoBox from "@/components/InfoBox.svelte";
 
   // tracks open/close status of the side panel for view in library button
   chrome.runtime.connect({ name: "sidepanel-heartbeat" });
@@ -27,6 +29,13 @@
   let selectedId = $state<string | null>(null);
 
   let selectedManhwa = $state<Manhwa | undefined>(undefined);
+
+  let shownTags = $derived(
+    selectedManhwa?.tags.slice(0, selectedManhwa.tags.length > 4 ? 3 : selectedManhwa.tags.length) ?? []
+  );
+  let showMore = $derived(selectedManhwa ? selectedManhwa.tags.length > 4 : false);
+  let moreTags = $derived(selectedManhwa && shownTags ? selectedManhwa.tags.length - shownTags.length : 0);
+  let openClosetags = $state(false);
 
   const cover = retrieveCover(() => selectedManhwa);
   let isLandscape = $state(false);
@@ -76,6 +85,7 @@
 
       const finalChapters = chapters.map((chp) => {
         if (chp.number === chapterNumber && !falsePrior) {
+          chapterNumber -= 1;
           return { ...chp, read: false };
         }
         return chp;
@@ -175,6 +185,19 @@
 >
   This will remove <strong>{selectedManhwa?.title}</strong> and its cached cover from your library. This can't be undone.
 </AlertBox>
+
+<InfoBox bind:open={openClosetags} title="Tags">
+  <div class="all-tags">
+    {#if selectedManhwa && selectedManhwa?.tags.length > 0}
+      {#each selectedManhwa.tags as tag, i (i)}
+        <Tag text={tag} />
+      {/each}
+    {:else}
+      <p>No tags available.</p>
+    {/if}
+  </div>
+</InfoBox>
+
 {#snippet linkToSvg()}
   <svg
     class="icon"
@@ -216,6 +239,14 @@
         <FavoriteButton favorite={selectedManhwa.favorite ?? false} onToggle={toggleFavorite} />
         <HideButton hidden={selectedManhwa.hidden ?? false} onToggle={toggleHidden} />
       </div>
+      <div class="genre-tags">
+        {#each shownTags as tag, i (i)}
+          <Tag text={tag} />
+        {/each}
+        {#if showMore}
+          <Tag text={`+${moreTags} more`} onClick={() => (openClosetags = true)} />
+        {/if}
+      </div>
       {#if selectedManhwa.description}
         <DescriptionDrawer
           description={selectedManhwa.description}
@@ -245,6 +276,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    background: linear-gradient(180deg, #0f172a 0%, #34316b6f, 50%, #182542cb 100%);
     /* scrollbar-width: thin;
     scrollbar-color: #475569 transparent; */
   }
@@ -343,6 +375,22 @@
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
+  }
+
+  .genre-tags {
+    display: flex;
+    gap: 5px;
+    height: 45px;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .all-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
   }
 
   .icon {

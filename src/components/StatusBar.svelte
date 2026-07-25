@@ -68,10 +68,7 @@
 </script>
 
 <div class="status-bar" style="--font-scale: {fontScale};">
-  <div
-    class="highlight"
-    style="transform: translateX({highlightLeft}px); width: {highlightWidth}px;"
-  ></div>
+  <div class="highlight" style="transform: translateX({highlightLeft}px); width: {highlightWidth}px;"></div>
   {#each labels as label, i}
     <button
       bind:this={buttonEls[i]}
@@ -91,7 +88,7 @@
     display: flex;
     background: #1e293b;
     border: 1px solid #334155;
-    border-radius: 50px;
+    border-radius: 9999px;
     padding: 3px;
   }
 
@@ -127,8 +124,8 @@
     top: 3px;
     bottom: 3px;
     left: 0;
-    background: rgba(37, 99, 235, 0.55);
-    border: 1px solid rgba(37, 99, 235, 0.8);
+    background: linear-gradient(90deg, #7f76c555, #56298ac2);
+    border: 1px solid #180a27;
     border-radius: 50px;
     pointer-events: none;
     transition:

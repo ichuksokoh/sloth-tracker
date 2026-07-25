@@ -26,7 +26,7 @@ export async function updateExistingManhwa(scraped: ScrapedManhwa, url: string) 
   if (onlyNewChps) {
     await manhwaStore.update(existingManhwa.id, {
       sourceUrl: scraped.sourceUrl ?? existingManhwa.sourceUrl,
-      totalChapters: scraped.latestChapter ?? existingManhwa.totalChapters,
+      totalChapters: scraped.totalChapters ?? existingManhwa.totalChapters,
       chapters: scraped.chapters
     });
   }

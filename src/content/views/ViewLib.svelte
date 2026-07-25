@@ -83,15 +83,15 @@
     user-select: none;
     line-height: 1;
     box-sizing: border-box;
+    transition:
+      transform 300ms ease-in,
+      opacity 300ms ease-in;
   }
 
   .popup-container.not-showing {
     opacity: 0;
     pointer-events: none;
-    transform: translateX(0);
-    transition:
-      transform 300ms ease-in,
-      opacity 300ms ease-in;
+    transform: translateX(-100%);
   }
 
   .popup-container * {

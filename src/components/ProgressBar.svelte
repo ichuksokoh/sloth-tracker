@@ -92,7 +92,7 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #818cf8);
+    background: linear-gradient(90deg, #27299b 0%, #4f46e5 50%, #818cf8 100%);
     border-radius: 999px;
     transition: width 500ms cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);

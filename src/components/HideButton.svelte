@@ -85,11 +85,11 @@
 
   .hide-btn:hover {
     border-color: #475569;
-    color: #94a3b8;
+    color: #dbdfe6;
   }
 
   .hide-btn.is-active {
-    color: #a5b4fc;
+    color: #dbdfe6;
     border-color: rgba(129, 140, 248, 0.4);
     background: rgba(99, 102, 241, 0.12);
     animation: pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1);

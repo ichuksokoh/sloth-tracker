@@ -66,7 +66,7 @@
 
   .favorite-btn:hover {
     border-color: #475569;
-    color: #94a3b8;
+    color: #dbdfe6;
   }
 
   .favorite-btn.is-active {

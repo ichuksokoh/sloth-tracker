@@ -10,7 +10,7 @@
     cancelLabel = "Cancel",
     confirmColorFrom = "#4338ca",
     confirmColorTo = "#3730a3",
-    showCancel = true,
+    showCancel = true
   }: {
     open?: boolean;
     title?: string;
@@ -45,12 +45,7 @@
 
 {#if open}
   <div class="backdrop" onclick={handleBackdropClick} role="presentation">
-    <div
-      class="panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? "alert-title" : undefined}
-    >
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby={title ? "alert-title" : undefined}>
       {#if title}
         <h2 id="alert-title">{title}</h2>
       {/if}
@@ -82,7 +77,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(2, 6, 23, 0.65);
+    background: radial-gradient(circle, rgba(103, 116, 172, 0.65) 0%, rgba(82, 39, 150, 0.178) 100%);
     backdrop-filter: blur(2px);
     z-index: 1000;
     animation: fade-in 150ms ease;

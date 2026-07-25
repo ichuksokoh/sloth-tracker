@@ -11,7 +11,7 @@ export interface ScrapedManhwa {
   title: string
   coverUrl: string | null
   description: string | null
-  latestChapter: number | null
+  totalChapters: number | null
   chapters: ScrapedChapter[]
   sourceUrl: string
 }
