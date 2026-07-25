@@ -56,7 +56,6 @@
     {/if}
   </svg>
 </button>
-
 <style>
   .hide-btn {
     display: flex;

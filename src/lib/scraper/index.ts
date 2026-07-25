@@ -9,7 +9,7 @@ export function scrapeCurrentPage(): ScrapedManhwa {
 
   const base = scrapeGeneric(document, url);
   const chapters = extractChapters(document, url);
-  const totalChapters = chapters.length;
+  const totalChapters = Math.max(...chapters.map((c) => c.number), 0) || null;
   const adapterKey = Object.keys(adapters).find((key) => hostname.includes(key));
   const override = adapterKey ? adapters[adapterKey](document, url) : {};
 

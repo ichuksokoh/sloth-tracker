@@ -35,4 +35,5 @@ export const showFavoritesOnly = createStorageField('showFavoritesOnly', false, 
 export const statusFilter = createStorageField('statusFilter', 'All', 'session', isString)
 export const hiddenFilter = createStorageField('hiddenFilter', false, 'session', isBoolean)
 export const toggleManhwaCount = createStorageField('toggleManhwaCount', false, 'local', isBoolean)
-export const sortByOption = createStorageField('sortByOption', 'Ascending', 'local', isString)
+export const sortByField = createStorageField('sortByField', 'Title', 'local', isString)
+export const sortByDirection = createStorageField('sortByDirection', 'asc', 'local', isString)

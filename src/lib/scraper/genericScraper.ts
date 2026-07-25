@@ -132,13 +132,12 @@ function extractImage(doc: Document): string | null {
   const actualImg = img?.querySelector("img");
   return actualImg?.getAttribute("src") || null;
 }
-export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, "chapters"> {
+export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, "totalChapters" | "chapters"> {
   const title = extractTitleRobust(doc) ?? "";
   return {
     title,
     coverUrl: extractImage(doc) || getMeta(doc, "og:image") || null,
     description: extractDescription(doc, title),
-    totalChapters: extractLatestChapter(doc, url),
     sourceUrl: url
   };
 }

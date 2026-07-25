@@ -116,7 +116,6 @@
     font-size: 15px;
     font-weight: 600;
     color: #f8fafc;
-    padding-right: 24px;
     text-align: center;
   }
 

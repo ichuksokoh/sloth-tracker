@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Manhwa } from "@/types";
+  import type { Manhwa, SortField, SortDirection } from "@/types";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import { setSelectedManhwa } from "@/lib/selectedManhwa.svelte";
   import * as fields from "@/lib/storageField";
@@ -10,6 +10,7 @@
   import HideButton from "@/components/HideButton.svelte";
   import AlertBox from "@/components/AlertBox.svelte";
   import SortByDropdown from "@/components/SortByDropdown.svelte";
+  import SortByDirBtn from "@/components/SortByDirBtn.svelte";
   import { deleteCachedCover } from "@/lib/coverCache.svelte";
 
   let searchQuery = $state("");
@@ -17,20 +18,31 @@
   let isSearching = $state(false); // true during the "waiting to settle" window
   let status = $state("All"); // 'All', 'Reading', 'Plan To Read', 'Completed', 'Dropped'
   const statusValues = ["All", "Plan To Read", "Reading", "Completed", "Dropped"] as const;
-  const sortByOptions = ["Ascending", "Descending", "Recently Added", "Recently Updated", "Rating", "Progress"];
-  const sortByDict: Record<string, (a: Manhwa, b: Manhwa) => number> = {
-    Ascending: (a, b) => a.title.localeCompare(b.title),
-    Descending: (a, b) => b.title.localeCompare(a.title),
-    "Recently Added": (a, b) => b.createdAt - a.createdAt,
-    "Recently Updated": (a, b) => b.updatedAt - a.updatedAt,
-    Rating: (a, b) => (b.rating ? (a.rating ? b.rating - a.rating : 1) : a.rating ? -1 : 0), // Checks if b has a rating, if not, check if a has a rating, if not, return 0
-    Progress: (a, b) => b.currentChapter - a.currentChapter
+  const sortByOptions = ["Title", "Recently Added", "Recently Updated", "Rating", "Progress"];
+
+  const fieldComparators: Record<SortField, (a: Manhwa, b: Manhwa) => number> = {
+    Title: (a, b) => a.title.localeCompare(b.title),
+    "Recently Added": (a, b) => a.createdAt - b.createdAt,
+    "Recently Updated": (a, b) => a.updatedAt - b.updatedAt,
+    Rating: (a, b) => (a.rating ?? 0) - (b.rating ?? 0),
+    Progress: (a, b) => {
+      const aP = a.totalChapters ? a.currentChapter / a.totalChapters : 0;
+      const bP = b.totalChapters ? b.currentChapter / b.totalChapters : 0;
+      return aP - bP;
+    }
   };
 
+  function manhwasSortBy(a: Manhwa, b: Manhwa, field: SortField, direction: SortDirection) {
+    const primary = fieldComparators[field](a, b);
+    const signed = direction === "asc" ? primary : -primary;
+    if (signed !== 0) return signed;
+    return a.title.localeCompare(b.title); // tiebreak stays constant regardless of direction
+  }
   let showFavoritesOnly = $state(false);
   let hideManwhaCount = $state(false); // hide the total manhwa count in the popup view
   let showHiddenOnly = $state(false); // show only hidden manhwa
-  let sortBy = $state("Ascending"); // default sort by option
+  let sortByField = $state<SortField>("Title"); // default sort by field
+  let sortByDirection = $state<SortDirection>("asc"); // default sort by direction
 
   // Front-end Client side filtering of the manhwa list based on search query, status filter, and favorites filter
   let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -56,7 +68,11 @@
     const hiddenMatches = showHiddenOnly ? a.hidden : !a.hidden;
     return (titleSim >= 0.6 || titleIncludes) && statusMatches && favoriteMatches && hiddenMatches;
   };
-  let filtered = $derived(manhwaStore.list.filter((m) => compare(m)).sort((a, b) => sortByDict[sortBy](a, b)));
+
+  let filtered = $derived(
+    manhwaStore.list.filter((m) => compare(m))
+    .sort((a, b) => manhwasSortBy(a, b, sortByField, sortByDirection))
+  )
 
   function handleStatusSelect(label: string) {
     status = label;
@@ -78,9 +94,16 @@
     fields.toggleManhwaCount.set(hideManwhaCount);
   }
 
-  function handleSortByOption(option: string) {
-    sortBy = option;
-    fields.sortByOption.set(option);
+
+
+  function handleSortByFieldOption(option: SortField) {
+    sortByField = option;
+    fields.sortByField.set(option);
+  }
+
+  function handleSortByDirectionOption() {
+    sortByDirection = sortByDirection === "asc" ? "desc" : "asc";
+    fields.sortByDirection.set(sortByDirection);
   }
 
   // Handle persistance of search queries, show favorites only, and status filter in Chrome storage
@@ -102,8 +125,11 @@
     fields.toggleManhwaCount.get().then((v) => {
       hideManwhaCount = v;
     });
-    fields.sortByOption.get().then((v) => {
-      sortBy = v;
+    fields.sortByField.get().then((v) => {
+      sortByField = v as SortField;
+    });
+    fields.sortByDirection.get().then((v) => {
+      sortByDirection = v as SortDirection;
     });
   });
 
@@ -123,8 +149,11 @@
   fields.toggleManhwaCount.onChange((v) => {
     hideManwhaCount = v;
   });
-  fields.sortByOption.onChange((v) => {
-    sortBy = v;
+  fields.sortByField.onChange((v) => {
+    sortByField = v as SortField;
+  });
+  fields.sortByDirection.onChange((v) => {
+    sortByDirection = v as SortDirection;
   });
   //Clear Query button logic
   let queryNotEmpty = $derived(debouncedQuery.trim().length > 0);
@@ -220,7 +249,8 @@
     </button>
   </nav>
   <nav class="filter-nav">
-    <SortByDropdown options={sortByOptions} onSelect={handleSortByOption} currentSelection={sortBy} />
+    <SortByDirBtn direction={sortByDirection} onClick={handleSortByDirectionOption} size={32} />
+    <SortByDropdown options={sortByOptions} onSelect={handleSortByFieldOption} currentSelection={sortByField} />
     <FavoriteButton favorite={showFavoritesOnly} onToggle={handleShowFavoritesToggle} forStatus={true} size={32} />
     <HideButton hidden={showHiddenOnly} onToggle={handleShowHiddenToggle} forStatus={true} size={32} />
   </nav>

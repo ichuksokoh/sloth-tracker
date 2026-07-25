@@ -69,3 +69,7 @@ export interface AniListResponse {
     Media: MediaResult | null;
   };
 }
+
+// Sorting Field and Direction Types
+export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress";
+export type SortDirection = "asc" | "desc";

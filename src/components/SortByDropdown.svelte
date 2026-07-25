@@ -1,7 +1,8 @@
 <script lang="ts">
+  import type { SortField } from "@/types";
   interface SortByProps {
     options: string[];
-    onSelect?: (option: string) => void;
+    onSelect?: (option: SortField) => void;
     currentSelection?: string;
   }
 
@@ -11,16 +12,14 @@
   let panelEl = $state<HTMLElement | null>(null);
   let triggerEl = $state<HTMLElement | null>(null);
 
-  let chosenIndex = $state(0);
   let optionsUsed = $derived(options.sort());
   function toggle() {
     open = !open;
   }
 
   function select(sortOptionIdx: number) {
-    chosenIndex = sortOptionIdx;
     currentSelection = optionsUsed[sortOptionIdx];
-    if (onSelect) onSelect(optionsUsed[sortOptionIdx]);
+    if (onSelect) onSelect(optionsUsed[sortOptionIdx] as SortField);
     open = false;
   }
 
@@ -59,13 +58,12 @@
   {#if open}
     <div bind:this={panelEl} class="panel">
       {#each optionsUsed as option, index (index)}
-        <button class="chapter-row" class:is-active={index === chosenIndex} onclick={() => select(index)}>
+        <button
+          class="chapter-row"
+          class:is-active={optionsUsed[index] === currentSelection}
+          onclick={() => select(index)}
+        >
           <span>{option}</span>
-          {#if index === chosenIndex}
-            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          {/if}
         </button>
       {/each}
     </div>
@@ -198,12 +196,5 @@
     background: rgba(99, 102, 241, 0.25);
     color: #c7d2fe;
     font-weight: 600;
-  }
-
-  .check {
-    width: 14px;
-    height: 14px;
-    color: #a5b4fc;
-    flex-shrink: 0;
   }
 </style>
