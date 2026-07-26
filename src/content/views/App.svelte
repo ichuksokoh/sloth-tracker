@@ -1,6 +1,6 @@
 <script lang="ts">
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
-  import AlertBox from "@/components/AlertBox.svelte";
+  import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import ViewLib from "@/content/views/ViewLib.svelte";
   import { scrapeCurrentPage } from "@/lib/scraper";
   import { updateExistingManhwa } from "@/lib/updateManhwaLib.svelte";

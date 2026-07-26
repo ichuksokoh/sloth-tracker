@@ -8,9 +8,20 @@
     title?: string;
     children: Snippet;
     closeLabel?: string;
+    secondaryLabel?: string;
+    onClick?: () => void;
+    tagPicked?: boolean;
   }
 
-  let { open = $bindable(false), title, children, closeLabel = "Close" }: InfoBoxProps = $props();
+  let {
+    open = $bindable(false),
+    title,
+    children,
+    closeLabel = "Close",
+    onClick,
+    secondaryLabel = "Clear",
+    tagPicked = false
+  }: InfoBoxProps = $props();
 
   function close() {
     open = false;
@@ -42,7 +53,6 @@
 {#if open}
   <!-- Added Svelte's built-in fade transition to the backdrop -->
   <div class="backdrop" transition:fade={{ duration: 150 }} onclick={handleBackdropClick} role="presentation">
-    
     <!-- Added the custom panelPop transition to the panel -->
     <div
       class="panel"
@@ -75,7 +85,12 @@
       </div>
 
       <!-- Bottom Close Button (HideButton Aesthetic) -->
-      <div class="actions">
+      <div class="actions" class:not-showing-secondary={!(onClick && secondaryLabel && tagPicked)}>
+        {#if onClick && secondaryLabel && tagPicked}
+          <button class="secondary-btn" onclick={onClick}>
+            {secondaryLabel}
+          </button>
+        {/if}
         <button class="btn-bottom-close" onclick={close}>
           {closeLabel}
         </button>
@@ -128,8 +143,12 @@
 
   .actions {
     display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+  }
+
+  .actions.not-showing-secondary {
     justify-content: flex-end;
-    margin-top: 16px;
   }
 
   /* Top Right X Button */
@@ -167,7 +186,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 34px;
+    height: 30px;
     padding: 0 16px;
     font-family: inherit;
     font-size: 13px;
@@ -191,5 +210,20 @@
 
   .btn-bottom-close:active {
     transform: scale(0.96);
+  }
+
+  .secondary-btn {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #818cf8;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 150ms ease;
   }
 </style>

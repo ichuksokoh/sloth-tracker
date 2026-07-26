@@ -1,14 +1,24 @@
 import { withLock } from "./asyncMutex";
-import type { Manhwa, ScrapedChapter, ScrapedManhwa } from "@/types";
+import type { Manhwa, ScrapedChapter, ScrapedManhwa, TagTracker } from "@/types";
 import { deleteCachedCover, cacheCover } from "./coverCache.svelte";
 import { stringSimilarity } from "./titleMatch";
 import { fetchMangaTags } from "@/background/services/anilist";
 import { fetchMangadexCover } from "@/background/services/mangadex";
+import * as tagManager from "./tagManager";
 
 const MANHWA_KEY = "manhwaList";
+const ALL_TAGS_KEY = "allTags";
 const RECENTLY_DELETED_KEY = "recentlyDeletedManhwa";
 const RECENTLY_DELETED_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
-const Excludetags = ["Wuxia", "Long Strip", "Full Color", "Male Protagonist", "Female Protagonist"];
+const Excludetags = [
+  "Wuxia",
+  "Long Strip",
+  "Full Color",
+  "Male Protagonist",
+  "Female Protagonist",
+  "Nudity",
+  "Heterosexual"
+];
 
 async function readManhwaList(): Promise<Manhwa[]> {
   const res = await chrome.storage.local.get({ [MANHWA_KEY]: [] });
@@ -16,8 +26,18 @@ async function readManhwaList(): Promise<Manhwa[]> {
   return Array.isArray(stored) ? stored : [];
 }
 
+async function readAllTags(): Promise<Record<string, TagTracker>> {
+  const res = await chrome.storage.local.get({ [ALL_TAGS_KEY]: {} });
+  const stored = res[ALL_TAGS_KEY];
+  return stored && typeof stored === "object" ? (stored as Record<string, TagTracker>) : {};
+}
+
 async function writeManhwaList(list: Manhwa[]) {
   await chrome.storage.local.set({ [MANHWA_KEY]: list });
+}
+
+async function writeAllTags(allTags: Record<string, TagTracker>) {
+  await chrome.storage.local.set({ [ALL_TAGS_KEY]: allTags });
 }
 
 async function readRecentlyDeleted(): Promise<(Manhwa & { __deletedAt: number })[]> {
@@ -126,11 +146,13 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
       manhwa.tags = aniListMedia.genres;
     }
     if (aniListMedia?.tags) {
-      const excludedTags = Excludetags.map((tag) => tag.toLowerCase().replace('-', ' '));
+      const excludedTags = Excludetags.map((tag) => tag.toLowerCase().replace("-", " "));
       const filteredTags = aniListMedia.tags
-        .filter((tag) => 
-          !excludedTags.includes(tag.name.toLowerCase().replace('-', ' ')) &&
-          !tag.isAdult && !tag.isMediaSpoiler).map((tag) => tag.name);
+        .filter(
+          (tag) =>
+            !excludedTags.includes(tag.name.toLowerCase().replace("-", " ")) && !tag.isAdult && !tag.isMediaSpoiler
+        )
+        .map((tag) => tag.name);
       manhwa.tags = [...new Set([...manhwa.tags, ...filteredTags])];
       manhwa.tags.sort((a, b) => a.localeCompare(b));
     }
@@ -144,6 +166,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
 export function addManhwa(manhwa: ScrapedManhwa) {
   return withLock(async () => {
     const list = await readManhwaList();
+    const allTags = await readAllTags();
     const revivable = await reviveManhwa(manhwa);
     if (revivable) {
       console.log("[background] reviving manhwa from recently deleted:", manhwa.title);
@@ -153,7 +176,8 @@ export function addManhwa(manhwa: ScrapedManhwa) {
       const newBornManhwa = await createManhwaFromScraped(manhwa);
       list.push(newBornManhwa);
     }
-    // list.push(manhwa);
+    tagManager.updateAllTags(allTags, list[list.length - 1].tags);
+    await writeAllTags(allTags);
     await writeManhwaList(list);
   });
 }
@@ -161,6 +185,13 @@ export function addManhwa(manhwa: ScrapedManhwa) {
 export function updateManhwa(id: string, patch: Partial<Manhwa>) {
   return withLock(async () => {
     const list = await readManhwaList();
+    // SAVE THIS LOGIC FOR WHEN CUSTOM TAGS ARE ADDED
+    // const allTags = await readAllTags();
+    // const tagToBeAdded = patch.tags ?? [];
+    // const oldManhwaTags = list.find((m) => m.id === id)?.tags ?? [];
+    // const tagsToRemove = tagToBeAdded.length > 0 ? oldManhwaTags.filter((tag) => !tagToBeAdded.includes(tag)) : [];
+    // tagManager.updateAllTags(allTags, tagsToRemove, -1);
+    // tagManager.updateAllTags(allTags, tagToBeAdded, 1);
     const next = list.map((m) => (m.id === id ? { ...m, ...patch, updatedAt: Date.now() } : m));
     await writeManhwaList(next);
   });
@@ -169,6 +200,7 @@ export function updateManhwa(id: string, patch: Partial<Manhwa>) {
 export function removeManhwa(id: string) {
   return withLock(async () => {
     const list = await readManhwaList();
+    const allTags = await readAllTags();
     const removed = list.find((m) => m.id === id);
     const next = list.filter((m) => m.id !== id);
     await writeManhwaList(next);
@@ -183,10 +215,45 @@ export function removeManhwa(id: string) {
       const pruned = deletedList.filter((m) => now - m.__deletedAt < RECENTLY_DELETED_RETENTION_MS);
       pruned.push({ ...removed, __deletedAt: now });
       await writeRecentlyDeleted(pruned);
+      tagManager.updateAllTags(allTags, removed.tags, -1);
+      await writeAllTags(allTags);
     }
   });
 }
 
 export function clearManhwa() {
-  return withLock(() => writeManhwaList([]));
+  return withLock(async () => {
+    const list = await readManhwaList();
+    const allTags = await readAllTags();
+    const deletedList = await readRecentlyDeleted();
+    for (const m of list) {
+      await deleteCachedCover(m.id);
+      tagManager.updateAllTags(allTags, m.tags, -1);
+      deletedList.push({ ...m, __deletedAt: Date.now() });
+    }
+    const pruned = deletedList.filter((m) => Date.now() - m.__deletedAt < RECENTLY_DELETED_RETENTION_MS);
+    await writeAllTags(allTags);
+    await writeManhwaList([]);
+    await writeRecentlyDeleted(pruned);
+  });
+}
+
+export function setTagActive(tag: string, active: boolean) {
+  return withLock(async () => {
+    const allTags = await readAllTags();
+    if (allTags[tag]) {
+      allTags[tag].active = active;
+      await writeAllTags(allTags);
+    }
+  });
+}
+
+export function clearAllActiveTags() {
+  return withLock(async () => {
+    const allTags = await readAllTags();
+    for (const tag in allTags) {
+      allTags[tag].active = false;
+    }
+    await writeAllTags(allTags);
+  });
 }

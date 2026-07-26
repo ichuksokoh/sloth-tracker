@@ -73,3 +73,9 @@ export interface AniListResponse {
 // Sorting Field and Direction Types
 export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress";
 export type SortDirection = "asc" | "desc";
+
+// Tag Tracker type
+export interface TagTracker {
+  count: number;
+  active: boolean;
+}

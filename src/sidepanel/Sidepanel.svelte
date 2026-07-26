@@ -2,20 +2,21 @@
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import { getSelectedManhwa, onSelectedManhwaChange } from "@/lib/selectedManhwa.svelte";
   import { retrieveCover } from "@/lib/coverCache.svelte";
+  import * as tagManager from "@/lib/tagManager";
   import type { Manhwa } from "@/types";
-  import Button from "@/components/Button.svelte";
-  import FavoriteButton from "@/components/FavoriteButton.svelte";
+  import Button from "@/components/Buttons/Button.svelte";
+  import FavoriteButton from "@/components/Buttons/FavoriteButton.svelte";
   import HideButton from "@/components/HideButton.svelte";
   import ProgressBar from "@/components/ProgressBar.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
-  import ChapterDropdown from "@/components/ChapterDropdown.svelte";
+  import ChapterDropdown from "@/components/Dropdowns/ChapterDropdown.svelte";
   import DescriptionDrawer from "@/components/DescriptionDrawer.svelte";
   // import Rating from '@/components/Rating.svelte';
   import RatingBar from "@/components/RatingBar.svelte";
-  import GoToBtn from "@/components/GoToBtn.svelte";
-  import AlertBox from "@/components/AlertBox.svelte";
+  import GoToBtn from "@/components/Buttons/GoToBtn.svelte";
+  import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import Tag from "@/components/Tag.svelte";
-  import InfoBox from "@/components/InfoBox.svelte";
+  import InfoBox from "@/components/PopupBoxes/InfoBox.svelte";
 
   // tracks open/close status of the side panel for view in library button
   chrome.runtime.connect({ name: "sidepanel-heartbeat" });
@@ -173,6 +174,16 @@
       await manhwaStore.update(selectedManhwa.id, { hidden: !selectedManhwa.hidden });
     }
   }
+
+  // Handle allowing clicking tags to open library with tag thwt was clicked filtered
+  async function handleTagClick(tag: string) {
+    await tagManager.setTagActive(tag, true);
+    await chrome.action.openPopup().catch((err) => console.error("Failed to open popup:", err));
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.windowId) {
+      await chrome.sidePanel.close({ windowId: tab.windowId });
+    }
+  }
 </script>
 
 <AlertBox
@@ -190,7 +201,7 @@
   <div class="all-tags">
     {#if selectedManhwa && selectedManhwa?.tags.length > 0}
       {#each selectedManhwa.tags as tag, i (i)}
-        <Tag text={tag} />
+        <Tag text={tag} onClick={() => handleTagClick(tag)} />
       {/each}
     {:else}
       <p>No tags available.</p>
@@ -241,7 +252,7 @@
       </div>
       <div class="genre-tags">
         {#each shownTags as tag, i (i)}
-          <Tag text={tag} />
+          <Tag text={tag} onClick={() => handleTagClick(tag)} />
         {/each}
         {#if showMore}
           <Tag text={`+${moreTags} more`} onClick={() => (openClosetags = true)} />

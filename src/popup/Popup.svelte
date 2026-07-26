@@ -6,11 +6,12 @@
   import { stringSimilarity } from "@/lib/titleMatch";
   import Card from "@/components/Card.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
-  import FavoriteButton from "@/components/FavoriteButton.svelte";
+  import FavoriteButton from "@/components/Buttons/FavoriteButton.svelte";
   import HideButton from "@/components/HideButton.svelte";
-  import AlertBox from "@/components/AlertBox.svelte";
-  import SortByDropdown from "@/components/SortByDropdown.svelte";
-  import SortByDirBtn from "@/components/SortByDirBtn.svelte";
+  import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
+  import SortByDropdown from "@/components/Dropdowns/SortByDropdown.svelte";
+  import SortByDirBtn from "@/components/Buttons/SortByDirBtn.svelte";
+  import TagFilter from "@/components/TagFilter.svelte";
   import { deleteCachedCover } from "@/lib/coverCache.svelte";
 
   let searchQuery = $state("");
@@ -61,12 +62,16 @@
   }
 
   const compare = (a: Manhwa) => {
+    const allTags = manhwaStore.allTags;
     const titleSim = stringSimilarity(a.title, debouncedQuery);
     const titleIncludes = a.title.toLowerCase().includes(debouncedQuery.toLowerCase());
     const statusMatches = status === "All" || a.status === status;
     const favoriteMatches = !showFavoritesOnly || a.favorite;
     const hiddenMatches = showHiddenOnly ? a.hidden : !a.hidden;
-    return (titleSim >= 0.6 || titleIncludes) && statusMatches && favoriteMatches && hiddenMatches;
+    // Show all is defualt for filtering purposes user does not actually see this
+    const showAll = Object.values(allTags).every((tag) => !tag.active);
+    const tagsMatches = a.tags.some((tag) => allTags[tag] && allTags[tag].active) || showAll;
+    return (titleSim >= 0.55 || titleIncludes) && statusMatches && favoriteMatches && hiddenMatches && tagsMatches;
   };
 
   let filtered = $derived(
@@ -253,6 +258,7 @@
     <SortByDropdown options={sortByOptions} onSelect={handleSortByFieldOption} currentSelection={sortByField} />
     <FavoriteButton favorite={showFavoritesOnly} onToggle={handleShowFavoritesToggle} forStatus={true} size={32} />
     <HideButton hidden={showHiddenOnly} onToggle={handleShowHiddenToggle} forStatus={true} size={32} />
+    <TagFilter size={32} />
   </nav>
   <main class="grid-scroll">
     {#if isSearching}

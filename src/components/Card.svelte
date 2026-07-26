@@ -2,7 +2,7 @@
   import type { Manhwa } from "@/types";
   import { retrieveCover, deleteCachedCover } from "@/lib/coverCache.svelte";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
-  import AlertBox from "@/components/AlertBox.svelte";
+  import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import ProgressBar from "@/components/ProgressBar.svelte";
 
   interface CardProps {

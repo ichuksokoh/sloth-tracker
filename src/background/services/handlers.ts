@@ -67,5 +67,15 @@ export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.M
   "manhwa:clear": async () => {
     await manhwaDB.clearManhwa();
     return { ok: true };
+  },
+
+  "tag:setActive": async (msg) => {
+    await manhwaDB.setTagActive(msg.tag, msg.active);
+    return { ok: true };
+  },
+
+  "tag:clearActive": async () => {
+    await manhwaDB.clearAllActiveTags();
+    return { ok: true };
   }
 };
