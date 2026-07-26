@@ -14,6 +14,7 @@ function normalizeTitle(title: string): string {
     .replace(/\s*chapter\s+\d+.*$/i, "")
     .replace(/\s*-\s*(manga|manhwa|manhua).*$/i, "")
     .replace(/\s+(manga|manhwa|manhua)\s+online.*$/i, "")
+    .replace(/\s+(manga|manhwa|manhua|webtoon)s?\s*$/i, "")
     .trim();
 }
 

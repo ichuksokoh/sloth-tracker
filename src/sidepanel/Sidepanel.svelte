@@ -402,6 +402,26 @@
     gap: 5px;
     justify-content: center;
     align-items: center;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .all-tags::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .all-tags::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .all-tags::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+    width: 0px;
+  }
+
+  .all-tags::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #41439d, #5a63ad);
   }
 
   .icon {

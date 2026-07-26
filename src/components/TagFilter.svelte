@@ -107,11 +107,21 @@
   }
 
   .all-tags::-webkit-scrollbar {
-    width: 0px;
+    width: 6px;
   }
 
   .all-tags::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  .all-tags::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+    width: 0px;
+  }
+
+  .all-tags::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #41439d, #5a63ad);
   }
 
   @keyframes pop {

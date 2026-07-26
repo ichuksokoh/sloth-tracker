@@ -40,7 +40,7 @@ export async function fetchMangaTags(title: string): Promise<MediaResult | null>
   });
 
   if (!response.ok) {
-    throw new Error(`AniList API error: ${response.statusText}`);
+    throw new Error(`AniList API error: ${await response.text()}`);
   }
 
   const json: AniListResponse = await response.json();
