@@ -167,6 +167,12 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
       manhwa.tags = [...new Set([...manhwa.tags, ...filteredTags])];
       manhwa.tags.sort((a, b) => a.localeCompare(b));
     }
+    if (aniListMedia?.description) {
+      const newDescription = aniListMedia.description
+        .replace(/<br\s*\/?>|\(\s*source.*?\)/gi, "")
+        .trim();
+      manhwa.description = newDescription.length > 0 ? newDescription : manhwa.description;
+    }
   } catch (err) {
     console.error("[background] failed to fetch AniList tags for", manhwa.title, err);
   }
@@ -209,11 +215,11 @@ export function updateManhwa(id: string, patch: Partial<Manhwa>) {
     const oldManhwa = list.find((m) => m.id === id);
     if (updatedManhwa?.hidden && oldManhwa && !oldManhwa.hidden) {
       // Remove tags from allTags if manhwa is hidden
-      tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], -1); 
+      tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], -1);
       tagManager.updateAllTags(hiddenTags, updatedManhwa?.tags ?? [], 1);
     } else if (!updatedManhwa?.hidden && oldManhwa && oldManhwa.hidden) {
       // Add tags back to allTags if manhwa is unhidden
-      tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], 1); 
+      tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], 1);
       tagManager.updateAllTags(hiddenTags, updatedManhwa?.tags ?? [], -1);
     }
     await writeAllTags(allTags);

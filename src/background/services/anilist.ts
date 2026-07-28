@@ -11,6 +11,7 @@ const SEARCH_MANGA_TAGS_QUERY = `
         english
         native
       }
+      description
       format
       countryOfOrigin
       genres

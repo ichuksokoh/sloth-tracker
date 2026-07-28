@@ -58,6 +58,7 @@ export interface MediaTitle {
 export interface MediaResult {
   id: number;
   title: MediaTitle;
+  description: string | null;
   format: string;
   countryOfOrigin: string;
   genres: string[];
