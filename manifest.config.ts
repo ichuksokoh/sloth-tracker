@@ -33,7 +33,7 @@ export default defineManifest({
     service_worker: "src/background/background.ts",
     type: "module",
   },
-  permissions: ["sidePanel", "contentSettings", "storage", "unlimitedStorage"],
+  permissions: ["sidePanel", "contentSettings", "storage", "unlimitedStorage", "identity"],
   host_permissions: ["<all_urls>", "https://graphql.anilist.co/*"],
   side_panel: {
     default_path: "src/sidepanel/index.html",

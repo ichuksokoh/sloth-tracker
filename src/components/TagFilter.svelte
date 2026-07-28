@@ -6,21 +6,31 @@
 
   interface TagFilterProps {
     size?: number;
+    showHidden?: boolean;
   }
 
-  let { size = 34 }: TagFilterProps = $props();
+  let { size = 34, showHidden = false }: TagFilterProps = $props();
 
   let open = $state(false);
   async function handleTagClick(tag: string) {
-    await tagManager.setTagActive(tag, !manhwaStore.allTags[tag].active);
+    if (showHidden) {
+      await tagManager.setHiddenTagActive(tag, !manhwaStore.hiddenTags[tag].active);
+    } else {
+      await tagManager.setTagActive(tag, !manhwaStore.allTags[tag].active);
+    }
   }
 
   async function handleClearTags() {
-    await tagManager.clearAllActiveTags();
+    if (showHidden) {
+      await tagManager.clearAllHiddenActiveTags();
+    } else {
+      await tagManager.clearAllActiveTags();
+    }
   }
 
+  let tagsToDisplay = $derived(showHidden ? manhwaStore.hiddenTags : manhwaStore.allTags);
   let selected = $derived(
-    Object.fromEntries(Object.entries(manhwaStore.allTags).filter(([_, tracker]) => tracker.active))
+    Object.fromEntries(Object.entries(tagsToDisplay).filter(([_, tracker]) => tracker.active))
   );
 
   let selectedCount = $derived(Object.keys(selected).length);
@@ -34,7 +44,7 @@
   tagPicked={selectedCount > 0}
 >
   <div class="all-tags">
-    {#each Object.entries(manhwaStore.allTags) as [tag, tracker] (tag)}
+    {#each Object.entries(tagsToDisplay) as [tag, tracker] (tag)}
       <Tag text={`${tag} (${tracker.count})`} onClick={() => handleTagClick(tag)} filtered={tracker.active} />
     {/each}
   </div>
@@ -57,7 +67,12 @@
     <Tag text={tag} filtered={tracker.active} onClick={() => handleTagClick(tag)} />
   {/each}
   {#if selectedCount > 1}
-    <Tag text={`+${selectedCount - 1} more`} filtered={false} onClick={() => (open = !open)} />
+    <Tag
+      text={`+${selectedCount - 1} more`}
+      filtered={false}
+      filterControl={true}
+      onClick={() => (open = !open)}
+    />
   {/if}
 {/if}
 

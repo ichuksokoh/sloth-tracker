@@ -3,6 +3,7 @@ import { stringSimilarity } from "./titleMatch";
 
 let list = $state<Manhwa[]>([]);
 let allTags = $state<Record<string,TagTracker>>({}); 
+let hiddenTags = $state<Record<string,TagTracker>>({});
 
 // hydrate on load
 chrome.storage.local.get<{ manhwaList: Manhwa[] }>({ manhwaList: [] }).then((res) => {
@@ -15,6 +16,11 @@ chrome.storage.local.get<{ allTags: Record<string, TagTracker>}>({ allTags: {} }
   allTags = stored && typeof stored === 'object' ? stored : {}
 })
 
+chrome.storage.local.get<{ hiddenTags: Record<string, TagTracker>}>({ hiddenTags: {} }).then((res) => {
+  const stored = res.hiddenTags
+  hiddenTags = stored && typeof stored === 'object' ? stored : {}
+})
+
 // stay in sync when ANY context (popup/sidepanel/content) changes it
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.manhwaList) {
@@ -24,6 +30,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.allTags) {
     const val = changes.allTags.newValue;
       allTags = val && typeof val === 'object' ? val as Record<string,TagTracker> : {} 
+  }
+  if (area === "local" && changes.hiddenTags) {
+    const val = changes.hiddenTags.newValue;
+    hiddenTags = val && typeof val === 'object' ? val as Record<string,TagTracker> : {} 
   }
 });
 
@@ -41,6 +51,9 @@ export const manhwaStore = {
   },
   get allTags() {
     return allTags;
+  },
+  get hiddenTags() {
+    return hiddenTags;
   },
   async add(item: ScrapedManhwa) {
     console.log("[content] adding new manhwa:", item.title);

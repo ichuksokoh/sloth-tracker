@@ -3,6 +3,7 @@
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import { setSelectedManhwa } from "@/lib/selectedManhwa.svelte";
   import * as fields from "@/lib/storageField";
+  import * as tagManager from "@/lib/tagManager";
   import { stringSimilarity } from "@/lib/titleMatch";
   import Card from "@/components/Card.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
@@ -164,6 +165,19 @@
   let queryNotEmpty = $derived(debouncedQuery.trim().length > 0);
   async function clearSearch() {
     fields.searchQuery.set("");
+    if (showHiddenOnly) {
+      await tagManager.clearAllHiddenActiveTags();
+    } else {
+      await tagManager.clearAllActiveTags();
+    }
+    if (showFavoritesOnly) {
+      showFavoritesOnly = false;
+      fields.showFavoritesOnly.set(false);
+    }
+    if (showHiddenOnly) {
+      showHiddenOnly = false;
+      fields.hiddenFilter.set(false);
+    }
   }
 
   // Open side Panel for Manhwa Info and Chapter Selection
@@ -258,7 +272,7 @@
     <SortByDropdown options={sortByOptions} onSelect={handleSortByFieldOption} currentSelection={sortByField} />
     <FavoriteButton favorite={showFavoritesOnly} onToggle={handleShowFavoritesToggle} forStatus={true} size={32} />
     <HideButton hidden={showHiddenOnly} onToggle={handleShowHiddenToggle} forStatus={true} size={32} />
-    <TagFilter size={32} />
+    <TagFilter size={32} showHidden={showHiddenOnly} />
   </nav>
   <main class="grid-scroll">
     {#if isSearching}

@@ -90,7 +90,7 @@ function isChapterUrl(url: string): boolean {
   } catch {
     return false;
   }
-
+  
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
 

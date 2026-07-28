@@ -8,6 +8,7 @@ import * as tagManager from "./tagManager";
 
 const MANHWA_KEY = "manhwaList";
 const ALL_TAGS_KEY = "allTags";
+const HIDDEN_TAGS_KEY = "hiddenTags";
 const RECENTLY_DELETED_KEY = "recentlyDeletedManhwa";
 const RECENTLY_DELETED_RETENTION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const Excludetags = [
@@ -32,12 +33,22 @@ async function readAllTags(): Promise<Record<string, TagTracker>> {
   return stored && typeof stored === "object" ? (stored as Record<string, TagTracker>) : {};
 }
 
+async function readHiddenTags(): Promise<Record<string, TagTracker>> {
+  const res = await chrome.storage.local.get({ [HIDDEN_TAGS_KEY]: {} });
+  const stored = res[HIDDEN_TAGS_KEY];
+  return stored && typeof stored === "object" ? (stored as Record<string, TagTracker>) : {};
+}
+
 async function writeManhwaList(list: Manhwa[]) {
   await chrome.storage.local.set({ [MANHWA_KEY]: list });
 }
 
 async function writeAllTags(allTags: Record<string, TagTracker>) {
   await chrome.storage.local.set({ [ALL_TAGS_KEY]: allTags });
+}
+
+async function writeHiddenTags(hiddenTags: Record<string, TagTracker>) {
+  await chrome.storage.local.set({ [HIDDEN_TAGS_KEY]: hiddenTags });
 }
 
 async function readRecentlyDeleted(): Promise<(Manhwa & { __deletedAt: number })[]> {
@@ -185,14 +196,28 @@ export function addManhwa(manhwa: ScrapedManhwa) {
 export function updateManhwa(id: string, patch: Partial<Manhwa>) {
   return withLock(async () => {
     const list = await readManhwaList();
+    const allTags = await readAllTags();
+    const hiddenTags = await readHiddenTags();
     // SAVE THIS LOGIC FOR WHEN CUSTOM TAGS ARE ADDED
-    // const allTags = await readAllTags();
     // const tagToBeAdded = patch.tags ?? [];
     // const oldManhwaTags = list.find((m) => m.id === id)?.tags ?? [];
     // const tagsToRemove = tagToBeAdded.length > 0 ? oldManhwaTags.filter((tag) => !tagToBeAdded.includes(tag)) : [];
     // tagManager.updateAllTags(allTags, tagsToRemove, -1);
     // tagManager.updateAllTags(allTags, tagToBeAdded, 1);
     const next = list.map((m) => (m.id === id ? { ...m, ...patch, updatedAt: Date.now() } : m));
+    const updatedManhwa = next.find((m) => m.id === id);
+    const oldManhwa = list.find((m) => m.id === id);
+    if (updatedManhwa?.hidden && oldManhwa && !oldManhwa.hidden) {
+      // Remove tags from allTags if manhwa is hidden
+      tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], -1); 
+      tagManager.updateAllTags(hiddenTags, updatedManhwa?.tags ?? [], 1);
+    } else if (!updatedManhwa?.hidden && oldManhwa && oldManhwa.hidden) {
+      // Add tags back to allTags if manhwa is unhidden
+      tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], 1); 
+      tagManager.updateAllTags(hiddenTags, updatedManhwa?.tags ?? [], -1);
+    }
+    await writeAllTags(allTags);
+    await writeHiddenTags(hiddenTags);
     await writeManhwaList(next);
   });
 }
@@ -201,6 +226,7 @@ export function removeManhwa(id: string) {
   return withLock(async () => {
     const list = await readManhwaList();
     const allTags = await readAllTags();
+    const hiddenTags = await readHiddenTags();
     const removed = list.find((m) => m.id === id);
     const next = list.filter((m) => m.id !== id);
     await writeManhwaList(next);
@@ -216,7 +242,9 @@ export function removeManhwa(id: string) {
       pruned.push({ ...removed, __deletedAt: now });
       await writeRecentlyDeleted(pruned);
       tagManager.updateAllTags(allTags, removed.tags, -1);
+      tagManager.updateAllTags(hiddenTags, removed.tags, -1);
       await writeAllTags(allTags);
+      await writeHiddenTags(hiddenTags);
     }
   });
 }
@@ -225,14 +253,17 @@ export function clearManhwa() {
   return withLock(async () => {
     const list = await readManhwaList();
     const allTags = await readAllTags();
+    const hiddenTags = await readHiddenTags();
     const deletedList = await readRecentlyDeleted();
     for (const m of list) {
       await deleteCachedCover(m.id);
       tagManager.updateAllTags(allTags, m.tags, -1);
+      tagManager.updateAllTags(hiddenTags, m.tags, -1);
       deletedList.push({ ...m, __deletedAt: Date.now() });
     }
     const pruned = deletedList.filter((m) => Date.now() - m.__deletedAt < RECENTLY_DELETED_RETENTION_MS);
     await writeAllTags(allTags);
+    await writeHiddenTags(hiddenTags);
     await writeManhwaList([]);
     await writeRecentlyDeleted(pruned);
   });
@@ -248,6 +279,16 @@ export function setTagActive(tag: string, active: boolean) {
   });
 }
 
+export function setHiddenTagActive(tag: string, active: boolean) {
+  return withLock(async () => {
+    const hiddenTags = await readHiddenTags();
+    if (hiddenTags[tag]) {
+      hiddenTags[tag].active = active;
+      await writeHiddenTags(hiddenTags);
+    }
+  });
+}
+
 export function clearAllActiveTags() {
   return withLock(async () => {
     const allTags = await readAllTags();
@@ -255,5 +296,15 @@ export function clearAllActiveTags() {
       allTags[tag].active = false;
     }
     await writeAllTags(allTags);
+  });
+}
+
+export function clearAllHiddenActiveTags() {
+  return withLock(async () => {
+    const hiddenTags = await readHiddenTags();
+    for (const tag in hiddenTags) {
+      hiddenTags[tag].active = false;
+    }
+    await writeHiddenTags(hiddenTags);
   });
 }

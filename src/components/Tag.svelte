@@ -5,9 +5,17 @@
     colorTo?: string;
     onClick?: () => void;
     filtered?: boolean;
+    filterControl?: boolean;
   }
 
-  let { text, colorFrom = "#1e293b", colorTo = "#334155", onClick, filtered = false }: TagProps = $props();
+  let {
+    text,
+    colorFrom = "#1e293b",
+    colorTo = "#334155",
+    onClick,
+    filtered = false,
+    filterControl = false
+  }: TagProps = $props();
   function handleClick(event: MouseEvent) {
     event.stopPropagation();
     if (onClick) {
@@ -16,7 +24,7 @@
   }
 </script>
 
-<button class="tag" onclick={handleClick} class:is-filtered={filtered}>
+<button class="tag" onclick={handleClick} class:is-filtered={filtered || filterControl}>
   {text}
   <!-- {#if filtered}
     <svg
@@ -88,7 +96,7 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background-color: transparent;;
+    background-color: transparent;
     color: #e8ebf0;
   }
 </style>

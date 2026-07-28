@@ -27,6 +27,17 @@ const SEARCH_MANGA_TAGS_QUERY = `
 `;
 
 export async function fetchMangaTags(title: string): Promise<MediaResult | null> {
+  const fixedTitle = title
+    .replace(/\([^)]*\)/g, "") // 1. Remove ()
+    .replace(/\[[^\]]*\]/g, "") // 2. Remove []
+    .replace(/(\w+)['’`‘]s\b/gi, (match, word) => {
+      // 3. Keep 'it's', remove other possessives (e.g. "Swordmaster's" -> "Swordmaster")
+      return word.toLowerCase() === "it" ? match : word;
+    })
+    .replace(/[^\w\s,'’`-]/g, "") // 4. Clean non-alphanumerics, keeping straight/curly apostrophes for contractions, spaces, commas, hyphens
+    .replace(/\s+/g, " ") // 5. Normalize spaces
+    .trim(); // 6. Trim leading/trailing spaces
+  console.log("Fixed title for AniList search:", fixedTitle);
   const response = await fetch(ANILIST_ENDPOINT, {
     method: "POST",
     headers: {
@@ -35,7 +46,7 @@ export async function fetchMangaTags(title: string): Promise<MediaResult | null>
     },
     body: JSON.stringify({
       query: SEARCH_MANGA_TAGS_QUERY,
-      variables: { search: title }
+      variables: { search: fixedTitle }
     })
   });
 
