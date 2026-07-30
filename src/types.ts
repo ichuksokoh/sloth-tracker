@@ -1,4 +1,18 @@
-export type ReadStatus = 'Reading' | 'Plan To Read' | 'Completed' | 'Dropped'
+
+
+// Types for the Scraper
+// For chapter/episode scraping/manhwa data extraction
+export type ChapterUnit = "Ch." | "Ep.";
+
+export interface ChapterMatch {
+  number: number;
+  unit: ChapterUnit;
+}
+
+export interface TitleCandidate {
+  title: string;
+  sources: Set<string>;
+}
 
 export interface ScrapedChapter {
   number: number
@@ -15,6 +29,10 @@ export interface ScrapedManhwa {
   chapters: ScrapedChapter[]
   sourceUrl: string
 }
+
+
+// Types for the main library data structure
+export type ReadStatus = 'Reading' | 'Plan To Read' | 'Completed' | 'Dropped'
 
 export interface Manhwa {
   id: string           // crypto.randomUUID() at creation time
@@ -36,7 +54,18 @@ export interface Manhwa {
   updatedAt: number
 }
 
+// Sorting Field and Direction Types
+export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress";
+export type SortDirection = "asc" | "desc";
 
+// Tag Tracker type
+export interface TagTracker {
+  count: number;
+  active: boolean;
+}
+
+
+// API Types
 // Anilist API data types (for the "import from Anilist" feature)// types.ts
 export interface MediaTag {
   id: number;
@@ -69,14 +98,4 @@ export interface AniListResponse {
   data: {
     Media: MediaResult | null;
   };
-}
-
-// Sorting Field and Direction Types
-export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress";
-export type SortDirection = "asc" | "desc";
-
-// Tag Tracker type
-export interface TagTracker {
-  count: number;
-  active: boolean;
 }

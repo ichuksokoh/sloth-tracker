@@ -128,6 +128,7 @@
     z-index: 100;
     display: flex;
     align-items: flex-end;
+    gap: 8px;
     font-size: 16px;
     font-family: ui-sans-serif, system-ui, sans-serif;
     user-select: none;

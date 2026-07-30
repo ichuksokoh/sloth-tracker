@@ -3,8 +3,8 @@ import type { ScrapedChapter } from "@/types";
 
 const MAX_PLAUSIBLE_CHAPTER = 5000;
 
-function formatChapterLabel(number: number, volume?: string): string {
-  return volume ? `Vol. ${volume} Ch. ${number}` : `Ch. ${number}`;
+function formatChapterLabel(number: number, volume?: string, unit: "Ch." | "Ep." = "Ch."): string {
+  return volume ? `Vol. ${volume} ${unit} ${number}` : `${unit} ${number}`;
 }
 
 function resolveUrl(href: string, base: string): string {
@@ -28,11 +28,11 @@ function extractFromHrefs(doc: Document, url: string): ScrapedChapter[] {
   const byNumber = new Map<number, ScrapedChapter>();
   for (const a of anchors) {
     const href = a.getAttribute("href") ?? "";
-    const number = extractChapterFromSegments(href);
-    if (number === null || number > MAX_PLAUSIBLE_CHAPTER) continue;
-    byNumber.set(number, {
-      number,
-      label: formatChapterLabel(number),
+    const match = extractChapterFromSegments(href);
+    if (match === null || match.number > MAX_PLAUSIBLE_CHAPTER) continue;
+    byNumber.set(match.number, {
+      number: match.number,
+      label: formatChapterLabel(match.number, undefined, match.unit),
       url: resolveUrl(href, url),
       read: false
     });
@@ -46,7 +46,7 @@ function extractFromHrefs(doc: Document, url: string): ScrapedChapter[] {
 // the text to START with "Chapter" to avoid picking up unrelated
 // links elsewhere on the page.
 function extractFromText(doc: Document, url: string): ScrapedChapter[] {
-  const pattern = /^(?:vol\.?\s*(\d+)\s*)?(?:chapter|ch\.?)\s*(\d+(?:\.\d+)?)/i;
+  const pattern = /^(?:vol\.?\s*(\d+)\s*)?(?:(chapter|ch\.?)|(episode|ep\.?))\s*(\d+(?:\.\d+)?)/i;
   const byNumber = new Map<number, ScrapedChapter>();
 
   for (const a of doc.querySelectorAll("a[href]")) {
@@ -54,15 +54,16 @@ function extractFromText(doc: Document, url: string): ScrapedChapter[] {
     const match = text.match(pattern);
     if (!match) continue;
 
-    const volume = match[1]; // undefined if no "Vol." prefix was present
-    const number = parseFloat(match[2]);
+    const volume = match[1];
+    const isEpisode = match[3] !== undefined;
+    const number = parseFloat(match[4]);
     if (number > MAX_PLAUSIBLE_CHAPTER) continue;
     if (byNumber.has(number)) continue; // first occurrence wins
 
     const href = a.getAttribute("href") ?? "";
     byNumber.set(number, {
       number,
-      label: formatChapterLabel(number, volume),
+      label: formatChapterLabel(number, volume, isEpisode ? "Ep." : "Ch."),
       url: resolveUrl(href, url),
       read: false
     });

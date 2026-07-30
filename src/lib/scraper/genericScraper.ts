@@ -1,4 +1,4 @@
-import type { ScrapedManhwa } from "@/types";
+import type { ScrapedManhwa, ChapterUnit, ChapterMatch } from "@/types";
 import { extractTitleRobust } from "./titleScraper";
 
 const MAX_PLAUSIBLE_CHAPTER = 5000; // generous — real series rarely get near this
@@ -17,10 +17,13 @@ export function getSeriesSlug(url: string): string {
   return candidates.reduce((a, b) => (b.length > a.length ? b : a));
 }
 
-// Matches a chapter number ONLY when it's its own clean path segment,
-// e.g. "chapter-244" or ".../chapter/244". Rejects numbers embedded
-// inside longer combined segments.
-export function extractChapterFromSegments(href: string): number | null {
+
+// Matches a chapter/episode number when it starts its own clean path segment,
+// e.g. "chapter-244", ".../chapter/244", "episode-19", ".../episode/19", or
+// "ep-528-white-ghost-9" (trailing episode-title text is ignored).
+// Rejects numbers embedded inside longer combined segments where the prefix
+// isn't immediately followed by the number (e.g. "chapterhouse-244").
+export function extractChapterFromSegments(href: string): ChapterMatch | null {
   let path: string;
   try {
     path = new URL(href, location.origin).pathname;
@@ -28,83 +31,28 @@ export function extractChapterFromSegments(href: string): number | null {
     return null;
   }
   const segments = path.split("/").filter(Boolean);
-  let highest: number | null = null;
+  let highest: ChapterMatch | null = null;
+
+  const consider = (num: number, unit: ChapterUnit) => {
+    if (highest === null || num > highest.number) highest = { number: num, unit };
+  };
 
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
-    const exact = seg.match(/^chapter[-_]?(\d+(?:[\.\-]\d+)?)$/i);
+    const exact = seg.match(/^(chapter|ch|episode|ep)[-_]?(\d+(?:[\.\-]\d+)?)(?:[-_].*)?$/i);
     if (exact) {
-      const num = parseFloat(exact[1].replace("-", "."));
-      if (highest === null || num > highest) highest = num;
+      const unit: ChapterUnit = /^ep/i.test(exact[1]) ? "Ep." : "Ch.";
+      const num = parseFloat(exact[2].replace("-", "."));
+      consider(num, unit);
       continue;
     }
-    if (/^chapter$/i.test(seg) && segments[i + 1] && /^\d+(\.\d+)?$/.test(segments[i + 1])) {
+    if (/^(chapter|episode)$/i.test(seg) && segments[i + 1] && /^\d+(\.\d+)?$/.test(segments[i + 1])) {
+      const unit: ChapterUnit = /^episode$/i.test(seg) ? "Ep." : "Ch.";
       const num = parseFloat(segments[i + 1]);
-      if (highest === null || num > highest) highest = num;
+      consider(num, unit);
     }
   }
 
-  return highest;
-}
-
-function extractTitle(doc: Document): string {
-  const h1 = doc.querySelector("h1");
-  let title = "";
-
-  if (h1) {
-    const directText = Array.from(h1.childNodes)
-      .filter((n) => n.nodeType === Node.TEXT_NODE)
-      .map((n) => n.textContent ?? "")
-      .join(" ")
-      .trim();
-    title = directText || h1.querySelector("*")?.textContent?.trim() || "";
-    console.log("Extracted title from <h1>:", title);
-  }
-
-  if (!title) {
-    console.log("Extracted title from meta:", title);
-    title = (getMeta(doc, "og:title") ?? doc.title).split("|")[0].trim();
-    title = title.replace(/^Read\s+/i, "");
-    title = title.replace(/\s*[-–]\s*(Latest Chapters?.*|Free.*|Manga Online.*)$/i, "");
-    title = title.replace(/\s+(Manga|Manhwa|Manhua)?\s*Online.*$/i, "");
-  }
-
-  return title.split(";")[0].trim();
-}
-
-function extractLatestChapter(doc: Document, url: string): number | null {
-  const slug = getSeriesSlug(url).toLowerCase();
-  const anchors = Array.from(doc.querySelectorAll("a[href]"));
-  const scopedAnchors = slug
-    ? anchors.filter((a) => (a.getAttribute("href") ?? "").toLowerCase().includes(slug))
-    : [];
-
-  if (scopedAnchors.length > 0) {
-    const candidates: number[] = [];
-    for (const a of scopedAnchors) {
-      const num = extractChapterFromSegments(a.getAttribute("href") ?? "");
-      if (num !== null) candidates.push(num);
-    }
-    if (candidates.length > 0) {
-      const plausible = candidates.filter((n) => n <= MAX_PLAUSIBLE_CHAPTER);
-      const pool = plausible.length > 0 ? plausible : candidates;
-      return Math.max(...pool);
-    }
-  }
-
-  // fallback: unscoped, whole-page, link-text scan (works for Flame, Mangago-style
-  // "Ch."/"Vol. N Ch. N" abbreviations, and full-word "Chapter")
-  const textPattern = /(?:vol\.?\s*\d+\s*)?(?:chapter|ch\.?)\s*(\d+(?:\.\d+)?)/i;
-  let highest: number | null = null;
-  for (const a of anchors) {
-    const text = a.textContent?.trim();
-    if (!text) continue;
-    const match = text.match(textPattern);
-    if (!match) continue;
-    const num = parseFloat(match[1]);
-    if (num > MAX_PLAUSIBLE_CHAPTER) continue;
-    if (highest === null || num > highest) highest = num;
-  }
   return highest;
 }
 

@@ -1,9 +1,6 @@
 import { getMeta } from "@/lib/scraper/genericScraper";
+import type { TitleCandidate } from "@/types";
 
-interface TitleCandidate {
-  title: string;
-  sources: Set<string>;
-}
 
 function normalizeTitle(title: string): string {
   return title
