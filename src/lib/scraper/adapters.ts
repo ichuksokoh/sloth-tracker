@@ -1,4 +1,3 @@
-// src/lib/scraper/adapters.ts
 import type { ScrapedManhwa } from "@/types";
 
 type Adapter = (doc: Document, url: string) => Partial<ScrapedManhwa>;

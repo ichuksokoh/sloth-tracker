@@ -1,4 +1,3 @@
-// src/lib/scraper/chapterScraper.ts
 import { getSeriesSlug, extractChapterFromSegments } from "./genericScraper";
 import type { ScrapedChapter } from "@/types";
 

@@ -1,4 +1,3 @@
-// src/lib/scraper/genericScraper.ts
 import type { ScrapedManhwa } from "@/types";
 import { extractTitleRobust } from "./titleScraper";
 

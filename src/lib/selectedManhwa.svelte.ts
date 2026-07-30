@@ -1,4 +1,5 @@
 const KEY = "selectedManhwaId";
+const KEY_LOCAL = "selectedManhwaIdLocal";
 
 export async function setSelectedManhwa(id: string) {
   await chrome.storage.session.set({ [KEY]: id });
@@ -27,4 +28,33 @@ export function onSelectedManhwaChange(callback: (id: string | null) => void) {
   return () => {
     chrome.storage.onChanged.removeListener(listener);
   };
+}
+
+
+export async function setSelectedManhwaLocal(id: string) {
+  chrome.storage.local.set({ [KEY_LOCAL]: id });
+}
+
+export function getSelectedManhwaLocal(): string | null {
+  const value = chrome.storage.local.get(KEY_LOCAL);
+  return typeof value === "string" ? value : null;
+}
+
+export  function onSelectedManhwaLocalChange(callback: (id: string | null) => void) {
+  const listener: Listener = (changes, area) => {
+    if (area === "local" && KEY_LOCAL in changes) {
+      const value = changes[KEY_LOCAL].newValue;
+      callback(typeof value === "string" ? value : null);
+    }
+  };
+  chrome.storage.onChanged.addListener(listener);
+
+  return () => {
+    chrome.storage.onChanged.removeListener(listener);
+  };
+}
+
+export async function setSelectedManhwaAll(id: string) {
+  await setSelectedManhwa(id);
+  await setSelectedManhwaLocal(id);
 }

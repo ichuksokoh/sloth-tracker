@@ -7,11 +7,7 @@
     libOpen?: boolean;
   }
 
-  let {
-    manhwaId,
-    dismissed = $bindable(false),
-    libOpen = $bindable(false)
-  }: ViewLibProps = $props();
+  let { manhwaId, dismissed = $bindable(false), libOpen = $bindable(false) }: ViewLibProps = $props();
 
   let sidePanelOpenAlready = $state(false);
   let notSameManhwa = $state(true);
@@ -41,6 +37,13 @@
 
   $effect(() => {
     checkSidePanelAndSelection();
+    const unsubscribe =  selectManwha.onSelectedManhwaLocalChange((newId) => {
+      checkSidePanelAndSelection();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   });
   $effect(() => {
     console.log("showing", showing);

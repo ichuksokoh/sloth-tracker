@@ -24,6 +24,7 @@ export default defineManifest({
         "*://drakecomic.org/*",
         "*://*.mangago.me/*",
         "*://rizzfables.com/*",
+        "*://*.webtoons.com/*",
         // '<all_urls>',
       ],
       js: ["src/content/content.ts"],
