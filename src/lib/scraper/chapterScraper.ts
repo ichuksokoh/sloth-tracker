@@ -1,5 +1,5 @@
 import { getSeriesSlug, extractChapterFromSegments } from "./genericScraper";
-import type { ScrapedChapter } from "@/types";
+import type { ScrapedChapter, ChapterScraperItem } from "@/types";
 
 const MAX_PLAUSIBLE_CHAPTER = 5000;
 
@@ -17,19 +17,21 @@ function resolveUrl(href: string, base: string): string {
 
 // Primary strategy: chapter number lives in the href itself
 // (e.g. /series/nano-machine/chapter-244), scoped to this series' slug.
-function extractFromHrefs(doc: Document, url: string): ScrapedChapter[] {
+function extractFromHrefs(doc: Document, url: string): ChapterScraperItem {
   const slug = getSeriesSlug(url).toLowerCase();
-  if (!slug) return [];
-
+  if (!slug) return { anchors: [], chapters: [] };
   const anchors = Array.from(doc.querySelectorAll("a[href]")).filter((a) =>
     (a.getAttribute("href") ?? "").toLowerCase().includes(slug)
   );
 
   const byNumber = new Map<number, ScrapedChapter>();
+  const anchorsToGetChpContainer = [];
   for (const a of anchors) {
     const href = a.getAttribute("href") ?? "";
     const match = extractChapterFromSegments(href);
     if (match === null || match.number > MAX_PLAUSIBLE_CHAPTER) continue;
+    if (byNumber.has(match.number)) continue; // first occurrence wins
+    anchorsToGetChpContainer.push(a);
     byNumber.set(match.number, {
       number: match.number,
       label: formatChapterLabel(match.number, undefined, match.unit),
@@ -38,16 +40,17 @@ function extractFromHrefs(doc: Document, url: string): ScrapedChapter[] {
     });
   }
 
-  return Array.from(byNumber.values());
+  return { anchors: anchorsToGetChpContainer, chapters: Array.from(byNumber.values()) };
 }
 
 // Fallback strategy: chapter number isn't in the URL at all (opaque
 // IDs), so read it from the anchor's visible text instead. Requires
 // the text to START with "Chapter" to avoid picking up unrelated
 // links elsewhere on the page.
-function extractFromText(doc: Document, url: string): ScrapedChapter[] {
+function extractFromText(doc: Document, url: string): ChapterScraperItem {
   const pattern = /^(?:vol\.?\s*(\d+)\s*)?(?:(chapter|ch\.?)|(episode|ep\.?))\s*(\d+(?:\.\d+)?)/i;
   const byNumber = new Map<number, ScrapedChapter>();
+  const anchorsToGetChpContainer = [];
 
   for (const a of doc.querySelectorAll("a[href]")) {
     const text = a.textContent?.replace(/\s+/g, " ").trim() ?? "";
@@ -59,7 +62,7 @@ function extractFromText(doc: Document, url: string): ScrapedChapter[] {
     const number = parseFloat(match[4]);
     if (number > MAX_PLAUSIBLE_CHAPTER) continue;
     if (byNumber.has(number)) continue; // first occurrence wins
-
+    anchorsToGetChpContainer.push(a);
     const href = a.getAttribute("href") ?? "";
     byNumber.set(number, {
       number,
@@ -68,12 +71,15 @@ function extractFromText(doc: Document, url: string): ScrapedChapter[] {
       read: false
     });
   }
-
-  return Array.from(byNumber.values());
+  return { anchors: anchorsToGetChpContainer, chapters: Array.from(byNumber.values()) };
 }
 
-export function extractChapters(doc: Document, url: string): ScrapedChapter[] {
-  const fromHrefs = extractFromHrefs(doc, url);
-  const chapters = fromHrefs.length > 0 ? fromHrefs : extractFromText(doc, url);
-  return chapters.sort((a, b) => a.number - b.number);
+export function extractChapters(doc: Document, url: string): ChapterScraperItem {
+  let anchors_chps = extractFromHrefs(doc, url);
+  if (anchors_chps.chapters.length <= 0 ) {
+    anchors_chps = extractFromText(doc, url);
+  }
+  const chosen_anchors_chps = anchors_chps.chapters.length > 0 ? anchors_chps : extractFromText(doc, url);
+  chosen_anchors_chps.chapters.sort((a, b) => a.number - b.number);
+  return chosen_anchors_chps;
 }

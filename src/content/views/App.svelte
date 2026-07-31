@@ -1,8 +1,9 @@
 <script lang="ts">
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
+  import Spinner from "@/components/Spinner.svelte";
   import ViewLib from "@/content/views/ViewLib.svelte";
-  import { scrapeCurrentPage } from "@/lib/scraper";
+  import { scrapeCurrentPage, scrapeCurrentPageFull } from "@/lib/scraper";
   import { updateExistingManhwa } from "@/lib/updateManhwaLib.svelte";
   import { onMount } from "svelte";
 
@@ -52,7 +53,8 @@
     if (added || loading) return;
     loading = true;
 
-    scraped = scrapeCurrentPage();
+    // scraped = scrapeCurrentPage();
+    scraped = await scrapeCurrentPageFull();
     if (!scraped) return;
     try {
       await manhwaStore.add(scraped);
@@ -84,20 +86,25 @@
           event.stopPropagation();
           show = !show;
         }}
+        disabled={loading}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="add-icon"
-        >
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>Add to Library</span>
+      {#if loading}
+        <Spinner active={loading}/>
+        {:else}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="add-icon"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add to Library</span>
+      {/if}
       </button>
     </div>
   {/if}
@@ -181,6 +188,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    color: white;
     width: 150px;
     height: 40px;
     border-radius: 9999px;

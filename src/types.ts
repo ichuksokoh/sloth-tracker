@@ -21,6 +21,11 @@ export interface ScrapedChapter {
   read: boolean
 }
 
+export interface ChapterScraperItem {
+  anchors: Element[]
+  chapters: ScrapedChapter[]
+}
+
 export interface ScrapedManhwa {
   title: string
   coverUrl: string | null
