@@ -29,7 +29,7 @@
   // Handling of Selected Manhwa from Popup library view to Side Panel view
   let selectedId = $state<string | null>(null);
 
-  let selectedManhwa = $state<Manhwa | undefined>(undefined);
+  let selectedManhwa = $derived<Manhwa | undefined>(manhwaStore.list.find((m) => m.id === selectedId));
 
   let shownTags = $derived(
     selectedManhwa?.tags.slice(0, selectedManhwa.tags.length > 4 ? 3 : selectedManhwa.tags.length) ?? []
@@ -64,10 +64,6 @@
       selectedManhwa = undefined;
       return;
     }
-
-    manhwaStore.getById(id).then((manhwa) => {
-      selectedManhwa = selectedId === id ? manhwa : undefined;
-    });
   });
 
   // Handling of Chapter Selection and Status Update

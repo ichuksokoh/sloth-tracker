@@ -1,11 +1,11 @@
 import { manhwaStore } from "@/lib/manhwaStore.svelte";
-import type { ScrapedChapter, ScrapedManhwa } from "@/types";
+import type { ScrapedManhwa } from "@/types";
 
 export async function updateExistingManhwa(scraped: ScrapedManhwa, url: string) {
   if (!scraped.title) return;
-  let existingManhwa = await manhwaStore.getManhwaByTitleOnHost(scraped.title, url);
+  let existingManhwa = manhwaStore.getManhwaByTitleOnHost(scraped.title, url);
   if (!existingManhwa) {
-    existingManhwa = await manhwaStore.getManhwaBySourceUrl(url);
+    existingManhwa = manhwaStore.getManhwaBySourceUrl(url);
   }
   if (!existingManhwa) return;
 
@@ -18,7 +18,7 @@ export async function updateExistingManhwa(scraped: ScrapedManhwa, url: string) 
     }
   }
   
-  const newChapters = [...existingManhwa.chapters, ...updatedChps];
+  const newChapters = [...$state.snapshot(existingManhwa.chapters), ...updatedChps];
   const newTotalChapters = Math.max(...newChapters.map((ch) => ch.number));
 
   await manhwaStore.update(existingManhwa.id, {

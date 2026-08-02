@@ -17,24 +17,22 @@
   let libOpen = $state(true);
 
   $effect(() => {
+    const currentlyScraped = scraped;
     const loadExisting = async () => {
-      if (!scraped.title) {
+      if (!currentlyScraped.title) {
         existingManhwaId = null;
         return;
       }
 
-      const [byTitle, byUrl] = await Promise.all([
-        manhwaStore.getManhwaByTitleOnHost(scraped.title, scraped.sourceUrl),
-        manhwaStore.getManhwaBySourceUrl(scraped.sourceUrl)
-      ]);
+      const byUrl =  manhwaStore.getManhwaBySourceUrl(currentlyScraped.sourceUrl);
+      const byTitle =  manhwaStore.getManhwaByTitleOnHost(currentlyScraped.title, currentlyScraped.sourceUrl)
 
-      if (byTitle) {
-        await updateExistingManhwa(scraped, scraped.sourceUrl);
-      } else if (byUrl) {
-        await updateExistingManhwa(scraped, scraped.sourceUrl);
+      if (byTitle || byUrl) {
+        await updateExistingManhwa(currentlyScraped, currentlyScraped.sourceUrl);
       }
 
       existingManhwaId = byUrl?.id ?? byTitle?.id ?? null;
+      console.log("[manhwa tracker] existingManhwaId", existingManhwaId);
       added = existingManhwaId !== null;
     };
 
@@ -57,8 +55,9 @@
     scraped = await scrapeCurrentPageFull();
     if (!scraped) return;
     try {
-      await manhwaStore.add(scraped);
+      const addedMahwa = await manhwaStore.add(scraped);
       added = true;
+      existingManhwaId = addedMahwa?.id ?? existingManhwaId;
     } catch (e) {
       console.error("[manhwa tracker] add failed", e);
     } finally {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Manhwa, SortField, SortDirection } from "@/types";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
-  import { setSelectedManhwa, setSelectedManhwaAll, setSelectedManhwaLocal } from "@/lib/selectedManhwa.svelte";
+  import { setSelectedManhwaAll } from "@/lib/selectedManhwa.svelte";
   import * as fields from "@/lib/storageField";
   import * as tagManager from "@/lib/tagManager";
   import { stringSimilarity } from "@/lib/titleMatch";

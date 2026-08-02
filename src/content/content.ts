@@ -27,16 +27,12 @@ async function evaluateAndMount() {
 
   const scraped = scrapeCurrentPage();
   console.log("Scraped manhwa:", scraped);
-  // await updateExistingManhwa(scraped, url)
-  // let existing = await manhwaStore.getManhwaByTitleOnHost(scraped.title, url)
-  // existing = await manhwaStore.getManhwaBySourceUrl(url)
 
   const newContainer = document.createElement("div");
   newContainer.id = "crxjs-app";
   document.body.appendChild(newContainer);
   currentApp = mount(App, {
     target: newContainer
-    // props: { scraped, existingManhwaId: existing?.id ?? null },
   });
   mountedForUrl = url;
 }

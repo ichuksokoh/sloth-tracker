@@ -50,8 +50,8 @@ export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.M
   },
 
   "manhwa:add": async (msg) => {
-    await manhwaDB.addManhwa(msg.manhwa);
-    return { ok: true };
+    const newManhwa = await manhwaDB.addManhwa(msg.manhwa);
+    return { ok: true, manhwa: newManhwa };
   },
 
   "manhwa:update": async (msg) => {
