@@ -10,16 +10,14 @@ export async function updateExistingManhwa(scraped: ScrapedManhwa, url: string) 
   if (!existingManhwa) return;
 
   const updatedChps = [];
-  let maxChp = Math.max(...existingManhwa.chapters.map((ch) => ch.number));
 
   for (const scrapedChp of scraped.chapters) {
     const existingChp = existingManhwa.chapters.find((ch) => ch.url === scrapedChp.url);
     if (!existingChp) {
-      scrapedChp.number = maxChp + 1;
       updatedChps.push(scrapedChp);
-      maxChp++;
     }
   }
+  
   const newChapters = [...existingManhwa.chapters, ...updatedChps];
   const newTotalChapters = Math.max(...newChapters.map((ch) => ch.number));
 
