@@ -129,10 +129,10 @@
 <style>
   .pill-group {
     position: fixed;
-    left: 0;
+    left: 50%;
     bottom: 0;
     margin: 20px;
-    z-index: 100;
+    z-index: 10000;
     display: flex;
     align-items: flex-end;
     gap: 8px;
@@ -146,7 +146,7 @@
     height: 50px;
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-100%);
+    /* transform: translateX(-100%); */
     transition:
       transform 500ms ease-out,
       opacity 500ms ease-out;
@@ -155,7 +155,7 @@
   .pill-group.ready {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(0);
+    transform: translateX(-50%);
     /* transition: transform 500ms ease-in, opacity 500ms ease-in; */
   }
 

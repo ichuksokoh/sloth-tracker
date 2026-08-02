@@ -8,26 +8,24 @@ export async function updateExistingManhwa(scraped: ScrapedManhwa, url: string) 
     existingManhwa = await manhwaStore.getManhwaBySourceUrl(url);
   }
   if (!existingManhwa) return;
-  if (existingManhwa.chapters.length >= scraped.chapters.length) return;
 
-  const chpCompare = (a: ScrapedChapter, b: ScrapedChapter) =>
-    a.number === b.number && a.url === b.url && a.label === b.label;
+  const updatedChps = [];
+  let maxChp = Math.max(...existingManhwa.chapters.map((ch) => ch.number));
 
-  if (existingManhwa.chapters.some((ch, i) => !chpCompare(ch, scraped.chapters[i]))) return;
-
-  let onlyNewChps = true;
-  for (let i = existingManhwa.chapters.length; i < scraped.chapters.length; i++) {
-    if (existingManhwa.chapters.find((ch) => chpCompare(ch, scraped.chapters[i]))) {
-      onlyNewChps = false;
-      break;
+  for (const scrapedChp of scraped.chapters) {
+    const existingChp = existingManhwa.chapters.find((ch) => ch.url === scrapedChp.url);
+    if (!existingChp) {
+      scrapedChp.number = maxChp + 1;
+      updatedChps.push(scrapedChp);
+      maxChp++;
     }
   }
+  const newChapters = [...existingManhwa.chapters, ...updatedChps];
+  const newTotalChapters = Math.max(...newChapters.map((ch) => ch.number));
 
-  if (onlyNewChps) {
-    await manhwaStore.update(existingManhwa.id, {
-      sourceUrl: scraped.sourceUrl ?? existingManhwa.sourceUrl,
-      totalChapters: scraped.totalChapters ?? existingManhwa.totalChapters,
-      chapters: scraped.chapters
-    });
-  }
+  await manhwaStore.update(existingManhwa.id, {
+    sourceUrl: scraped.sourceUrl ?? existingManhwa.sourceUrl,
+    totalChapters: newTotalChapters ?? existingManhwa.totalChapters,
+    chapters: newChapters
+  });
 }

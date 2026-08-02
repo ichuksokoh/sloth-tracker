@@ -1,6 +1,7 @@
 import { scrapeGeneric, getSeriesSlug } from "./genericScraper";
 import { extractChapters } from "./chapterScraper";
 import { scrapeInfiniteScrollChapters } from "./infiniteScrollChpScraper";
+import { scrapePaginationChapters } from "./paginationScraper";
 import { adapters } from "./adapters";
 import type { ScrapedManhwa } from "@/types";
 
@@ -11,12 +12,12 @@ export function scrapeCurrentPage(): ScrapedManhwa {
   const hostname = window.location.hostname.replace(/^www\./, "");
 
   const base = scrapeGeneric(document, url);
-  const anchors_chps = extractChapters(document, url);
-  const totalChapters = Math.max(...anchors_chps.chapters.map((c) => c.number), 0) || null;
+  const anchorsChps = extractChapters(document, url);
+  const totalChapters = Math.max(...anchorsChps.chapters.map((c) => c.number), 0) || null;
   const adapterKey = Object.keys(adapters).find((key) => hostname.includes(key));
   const override = adapterKey ? adapters[adapterKey](document, url) : {};
 
-  return { ...base, chapters: anchors_chps.chapters, totalChapters, ...override };
+  return { ...base, chapters: anchorsChps.chapters, totalChapters, ...override };
 }
 
 // Use for scraping the current page and following any lazy-load scrolling to get all chapters
@@ -24,13 +25,21 @@ export function scrapeCurrentPage(): ScrapedManhwa {
 export async function scrapeCurrentPageFull(): Promise<ScrapedManhwa> {
   const url = window.location.href;
   const hostname = window.location.hostname.replace(/^www\./, "");
-  const scrolled_anchor_chps = await scrapeInfiniteScrollChapters(document, url);
+
+  // 1. Try pagination first, if it exists
+  let chapterData = await scrapePaginationChapters(document, url);
+  if (!chapterData) {
+    console.log("[Pagination] No pagination detected, falling back to infinite scroll scraping.");
+    chapterData = await scrapeInfiniteScrollChapters(document, url);
+  }
+
+  // const scrolled_anchor_chps = await scrapeInfiniteScrollChapters(document, url);
   const base = scrapeGeneric(document, url);
-  const totalChapters = Math.max(...scrolled_anchor_chps.chapters.map((c) => c.number), 0) || null;
+  const totalChapters = Math.max(...chapterData.chapters.map((c) => c.number), 0) || null;
   const adapterKey = Object.keys(adapters).find((key) => hostname.includes(key));
   const override = adapterKey ? adapters[adapterKey](document, url) : {};
 
-  return { ...base, chapters: scrolled_anchor_chps.chapters, totalChapters, ...override };
+  return { ...base, chapters: chapterData.chapters, totalChapters, ...override };
 }
 
 // Finds the index of the segment that represents "this specific chapter" —

@@ -1,29 +1,50 @@
 import { getMeta } from "@/lib/scraper/genericScraper";
 import type { TitleCandidate } from "@/types";
 
+/**
+ * Normalizes a raw title string by stripping SEO spam, chapter numbers, and site names.
+ */
+function normalizeTitle(title: string, domainName: string = ""): string {
+  let t = title.replace(/\s+/g, " ").trim();
 
-function normalizeTitle(title: string): string {
-  return title
-    .replace(/\s+/g, " ")
-    .replace(/^read\s+/i, "")
-    .replace(/\s*\|\s*.+$/, "") // | Asura Scans
-    .replace(/\s*-\s*chapter\s+\d+.*$/i, "")
-    .replace(/\s*chapter\s+\d+.*$/i, "")
-    .replace(/\s*-\s*(manga|manhwa|manhua).*$/i, "")
-    .replace(/\s+(manga|manhwa|manhua)\s+online.*$/i, "")
-    .replace(/\s+(manga|manhwa|manhua|webtoon)s?\s*$/i, "")
-    .trim();
+  // 1. Remove SEO prefixes (e.g., "Read", "Free", "Watch")
+  t = t.replace(/^(read|free|watch)\s+/i, "");
+
+  // 2. Remove Chapter suffixes (e.g., " - Chapter 123", " Chapter 14")
+  t = t.replace(/\s*[-|~]?\s*chapter\s+\d+.*$/i, "");
+
+  // 3. Remove common site suffixes after a hyphen or pipe (e.g., " - Lua Comics", " - Asura Scans")
+  t = t.replace(/\s*[-|]\s*.*?(scans?|comics?|scanlations?|manga|manhwa|manhua|webtoons?|toons?)\s*$/i, "");
+
+  // 4. Remove generic trailing media types (e.g., " Title Manga Online")
+  t = t.replace(/\s+(manga|manhwa|manhua|webtoon)s?\s*(online|free)?\s*$/i, "");
+
+  // 5. Dynamically strip the host domain name if it appears after a separator
+  if (domainName) {
+    // e.g., strips " - luacomics" or " ~ drake"
+    const domainRegex = new RegExp(`\\s*[-|~]\\s*.*?${domainName}.*$`, "i");
+    t = t.replace(domainRegex, "");
+  }
+
+  // 6. Catch-all: Pipes (|) are almost exclusively used for SEO/Site names. Remove anything after it.
+  t = t.replace(/\s*\|.*$/, "");
+
+  return t.trim();
 }
 
-function addCandidate(map: Map<string, TitleCandidate>, raw: string | null | undefined, source: string) {
+function addCandidate(
+  map: Map<string, TitleCandidate>,
+  raw: string | null | undefined,
+  source: string,
+  domainName: string
+) {
   if (!raw) return;
 
-  const title = normalizeTitle(raw);
+  const title = normalizeTitle(raw, domainName);
 
-  if (!title) return;
-  if (title.length < 2) return;
+  if (!title || title.length < 2) return;
 
-  // Reject obvious junk
+  // Reject obvious junk that isn't a title
   if (/^(chapter|comments|bookmark|follow|share)$/i.test(title)) return;
 
   if (!map.has(title)) {
@@ -36,50 +57,54 @@ function addCandidate(map: Map<string, TitleCandidate>, raw: string | null | und
   }
 }
 
-export function extractTitleRobust(doc: Document): string {
+/**
+ * Extracts the most likely series title from the document.
+ * Optionally pass the current URL to strip the domain name from the title string.
+ */
+export function extractTitleRobust(doc: Document, url: string = window.location.href): string {
   const candidates = new Map<string, TitleCandidate>();
+
+  // Extract the raw domain name (e.g., "luacomics.org" -> "luacomics")
+  let domainName = "";
+  try {
+    domainName = new URL(url).hostname.replace(/^www\./, "").split(".")[0];
+  } catch {}
 
   //---------------------------------
   // document.title
   //---------------------------------
-
-  addCandidate(candidates, doc.title, "document.title");
+  addCandidate(candidates, doc.title, "document.title", domainName);
 
   //---------------------------------
   // meta
   //---------------------------------
-
-  addCandidate(candidates, getMeta(doc, "og:title"), "og:title");
+  addCandidate(candidates, getMeta(doc, "og:title"), "og:title", domainName);
 
   //---------------------------------
   // headings
   //---------------------------------
-
   doc.querySelectorAll("h1,h2,h3").forEach((el) => {
-    addCandidate(candidates, el.textContent, el.tagName.toLowerCase());
+    addCandidate(candidates, el.textContent, el.tagName.toLowerCase(), domainName);
   });
 
   //---------------------------------
   // schema.org
   //---------------------------------
-
   doc.querySelectorAll('[itemprop="name"]').forEach((el) => {
-    addCandidate(candidates, el.textContent, "itemprop=name");
+    addCandidate(candidates, el.textContent, "itemprop=name", domainName);
   });
 
   //---------------------------------
   // JSON-LD
   //---------------------------------
-
   doc.querySelectorAll('script[type="application/ld+json"]').forEach((script) => {
     try {
       const json = JSON.parse(script.textContent || "");
-
       const objects = Array.isArray(json) ? json : [json];
 
       for (const obj of objects) {
         if (typeof obj.name === "string") {
-          addCandidate(candidates, obj.name, "jsonld");
+          addCandidate(candidates, obj.name, "jsonld", domainName);
         }
       }
     } catch {}
@@ -88,14 +113,11 @@ export function extractTitleRobust(doc: Document): string {
   //---------------------------------
   // Pick best candidate
   //---------------------------------
-
   const ranked = [...candidates.values()].sort((a, b) => {
     // first compare how many sources agree
-
     if (b.sources.size !== a.sources.size) return b.sources.size - a.sources.size;
 
-    // then prefer shorter names
-
+    // then prefer shorter names (shorter names usually have less SEO spam attached)
     return a.title.length - b.title.length;
   });
 

@@ -6,7 +6,7 @@ import { extractChapters } from "./chapterScraper";
 const ChpCountThreshold = 60;
 // number of cycles where the chapter count must remain stable before we assume we've reached the end of the list 
 const REQUIRED_STABLE_CYCLES = 2;
-const MAX_CYCLES = 20; // safety limit to avoid infinite loops
+const MAX_CYCLES = 100; // safety limit to avoid infinite loops
 
 const SCROLLABLE_OVERFLOW = /^(auto|scroll|overlay)$/;
 const SAMPLE_SIZE = 25; // number of anchors to sample when determining scrollable ancestor
@@ -72,7 +72,7 @@ function needsLazyLoadScrolling(anchor_chps: ChapterScraperItem): boolean {
     return hasLittleChapters;
 }
 
-function waitForDomToSettle(maxWaitMs: number, quietMs = 300): Promise<void> {
+export function waitForDomToSettle(maxWaitMs: number, quietMs = 300): Promise<void> {
   return new Promise((resolve) => {
     let quietTimer: ReturnType<typeof setTimeout>;
     const finish = () => { observer.disconnect(); resolve(); };

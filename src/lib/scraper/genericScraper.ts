@@ -57,6 +57,9 @@ export function extractChapterFromSegments(href: string): ChapterMatch | null {
 }
 
 function extractDescription(doc: Document, title: string): string | null {
+  const idealDescription = doc.querySelector('div > [itemprop="description"]')?.textContent?.trim();
+  if (idealDescription) return idealDescription;
+
   const raw = getMeta(doc, "og:description");
   if (!raw) return null;
 
@@ -74,13 +77,24 @@ function extractDescription(doc: Document, title: string): string | null {
 
 function extractImage(doc: Document): string | null {
   const box = doc.querySelector('div > [itemprop="image"]');
-  if (!box) return null;
-  const img = box.cloneNode(true) as HTMLElement;
-  const actualImg = img?.querySelector("img");
-  return actualImg?.getAttribute("src") || null;
+  if (box) {
+    const img = box.cloneNode(true) as HTMLElement;
+    const actualImg = img?.querySelector("img");
+    return actualImg?.getAttribute("src") || null;
+  }
+
+  const images = doc.querySelectorAll("img");
+  const title = extractTitleRobust(doc, doc.URL);
+  for (const img of images) {
+    if (img.alt?.includes(title) || img.title?.includes(title)) {
+      return img.getAttribute("src") || null;
+    }
+  }
+
+  return null;
 }
 export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, "totalChapters" | "chapters"> {
-  const title = extractTitleRobust(doc) ?? "";
+  const title = extractTitleRobust(doc, url) ?? "";
   return {
     title,
     coverUrl: extractImage(doc) || getMeta(doc, "og:image") || null,

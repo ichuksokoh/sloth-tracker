@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Manhwa } from "@/types";
-  import { retrieveCover, deleteCachedCover } from "@/lib/coverCache.svelte";
+  import { retrieveCover } from "@/lib/coverCache.svelte";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import ProgressBar from "@/components/ProgressBar.svelte";
@@ -77,15 +77,14 @@
   let showDeleteConfirm = $state(false);
   async function deleteManhwa(id: string) {
     if (!id || id === "") return;
-    await deleteCachedCover(id);
     await manhwaStore.remove(id);
   }
+
   async function handleDelete(e: MouseEvent) {
     e.stopPropagation();
     showDeleteConfirm = true;
-    // await deleteCachedCover(manhwa.id)
-    // await manhwaStore.remove(manhwa.id)
   }
+
   function handleCardClick() {
     if (selectMode) {
       onToggleSelect?.(manhwa);
@@ -288,10 +287,11 @@
     opacity: 0;
     transform: scale(0.85);
     transition:
-      opacity 150ms ease,
-      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
-      background-color 150ms ease,
-      color 150ms ease;
+      opacity 250ms ease,
+      transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      background-color 250ms ease,
+      color 250ms ease,
+      rotate 250ms ease;
   }
 
   .card:hover .favorite-toggle,
@@ -317,11 +317,12 @@
   .favorite-toggle:hover {
     color: #fcd34d;
   }
-
+  
   .delete-btn:hover {
-    background: rgba(248, 113, 113, 0.2);
+    background: rgba(122, 15, 15, 0.497);
     border-color: rgba(248, 113, 113, 0.4);
     color: #f87171;
+    rotate: 90deg;
   }
 
   .title-wrap {

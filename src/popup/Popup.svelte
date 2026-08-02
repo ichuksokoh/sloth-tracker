@@ -13,7 +13,6 @@
   import SortByDropdown from "@/components/Dropdowns/SortByDropdown.svelte";
   import SortByDirBtn from "@/components/Buttons/SortByDirBtn.svelte";
   import TagFilter from "@/components/TagFilter.svelte";
-  import { deleteCachedCover } from "@/lib/coverCache.svelte";
 
   let searchQuery = $state("");
   let debouncedQuery = $state(""); // updates after typing pauses, drives the filter
@@ -212,7 +211,6 @@
 
   async function bulkDelete() {
     for (const id of selectedIds) {
-      await deleteCachedCover(id);
       await manhwaStore.remove(id);
     }
     selectedIds = new Set();
