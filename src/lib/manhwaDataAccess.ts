@@ -5,6 +5,7 @@ import { stringSimilarity } from "./titleMatch";
 import { fetchMangaTags } from "@/background/services/anilist";
 import { fetchMangadexCover } from "@/background/services/mangadex";
 import * as tagManager from "./tagManager";
+import { fetchKitsuByTitleMatched } from "@/background/services/kitsu";
 
 const MANHWA_KEY = "manhwaList";
 const ALL_TAGS_KEY = "allTags";
@@ -140,7 +141,8 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
       const blob = await res.blob();
       await cacheCover(manhwa.id, blob);
     } catch (err) {
-      console.error("[background] failed to cache cover for", manhwa.title, err);
+      console.warn("[background] no cover found for", manhwa.title);
+      console.log("[background] attempting to fetch fallback cover from MangaDex for", manhwa.title);
       const fallbackBlob = await fetchMangadexCover(manhwa.title);
       if (fallbackBlob) {
         await cacheCover(manhwa.id, fallbackBlob);
@@ -173,6 +175,20 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
     }
   } catch (err) {
     console.error("[background] failed to fetch AniList tags for", manhwa.title, err);
+    // Purely for if Anilist goes down, we can still try Kitsu as a fallback
+    try {
+      const kitsuMedia = await fetchKitsuByTitleMatched(manhwa.title, stringSimilarity);
+      console.log("[background] fetched Kitsu tags for", manhwa.title, kitsuMedia);
+      if (kitsuMedia?.genres) {
+        manhwa.tags = kitsuMedia.genres;
+      }
+      if (kitsuMedia?.description) {
+        const newDescription = kitsuMedia.description.replace(/<br\s*\/?>|\(\s*source.*?\)/gi, "").trim();
+        manhwa.description = newDescription.length > 0 ? newDescription : manhwa.description;
+      }
+    } catch (err) {
+      console.error("[background] failed to fetch Kitsu tags for", manhwa.title, err);
+    }
   }
 
   return manhwa;
@@ -200,7 +216,6 @@ export function addManhwa(manhwa: ScrapedManhwa) {
     await writeManhwaList(list);
 
     return finalLiveManhwa;
-
   });
 }
 

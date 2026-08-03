@@ -83,21 +83,25 @@ function extractImage(doc: Document): string | null {
     return actualImg?.getAttribute("src") || null;
   }
 
+  const image = getMeta(doc, "og:image");
+  if (image) return image;
+
   const images = doc.querySelectorAll("img");
   const title = extractTitleRobust(doc, doc.URL);
   for (const img of images) {
-    if (img.alt?.includes(title) || img.title?.includes(title)) {
+    if (img.alt?.includes(title)) {
       return img.getAttribute("src") || null;
     }
   }
 
   return null;
 }
+
 export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, "totalChapters" | "chapters"> {
   const title = extractTitleRobust(doc, url) ?? "";
   return {
     title,
-    coverUrl: extractImage(doc) || getMeta(doc, "og:image") || null,
+    coverUrl: extractImage(doc) || null,
     description: extractDescription(doc, title),
     sourceUrl: url
   };

@@ -1,5 +1,3 @@
-
-
 // Types for the Scraper
 // For chapter/episode scraping/manhwa data extraction
 export type ChapterUnit = "Ch." | "Ep.";
@@ -15,48 +13,47 @@ export interface TitleCandidate {
 }
 
 export interface ScrapedChapter {
-  number: number
-  label: string   // e.g. "Chapter 244", "Chp. 2.5"
-  url: string
-  read: boolean
+  number: number;
+  label: string; // e.g. "Chapter 244", "Chp. 2.5"
+  url: string;
+  read: boolean;
 }
 
 export interface ChapterScraperItem {
-  anchors: Element[]
-  chapters: ScrapedChapter[]
+  anchors: Element[];
+  chapters: ScrapedChapter[];
 }
 
 export interface ScrapedManhwa {
-  title: string
-  coverUrl: string | null
-  description: string | null
-  totalChapters: number | null
-  chapters: ScrapedChapter[]
-  sourceUrl: string
+  title: string;
+  coverUrl: string | null;
+  description: string | null;
+  totalChapters: number | null;
+  chapters: ScrapedChapter[];
+  sourceUrl: string;
 }
 
-
 // Types for the main library data structure
-export type ReadStatus = 'Reading' | 'Plan To Read' | 'Completed' | 'Dropped'
+export type ReadStatus = "Reading" | "Plan To Read" | "Completed" | "Dropped";
 
 export interface Manhwa {
-  id: string           // crypto.randomUUID() at creation time
-  title: string
-  description?: string 
-  descriptionOpen?: boolean
-  sourceUrl: string     // link back to where you read it
-  coverUrl?: string      // optional — you may not always capture one
-  status: ReadStatus
-  favorite?: boolean // optional — if you want to mark it as a favorite
-  hidden?: boolean // optional — if you want to hide it from the library view
-  currentChapter: number
-  totalChapters?: number // optional — often unknown/ongoing
-  chapters: ScrapedChapter[]
-  tags: string[]
-  rating?: number       // optional — 1-10 allows decimal ratings like 7.5
-  notes?: string
-  createdAt: number      // Date.now()
-  updatedAt: number
+  id: string; // crypto.randomUUID() at creation time
+  title: string;
+  description?: string;
+  descriptionOpen?: boolean;
+  sourceUrl: string; // link back to where you read it
+  coverUrl?: string; // optional — you may not always capture one
+  status: ReadStatus;
+  favorite?: boolean; // optional — if you want to mark it as a favorite
+  hidden?: boolean; // optional — if you want to hide it from the library view
+  currentChapter: number;
+  totalChapters?: number; // optional — often unknown/ongoing
+  chapters: ScrapedChapter[];
+  tags: string[];
+  rating?: number; // optional — 1-10 allows decimal ratings like 7.5
+  notes?: string;
+  createdAt: number; // Date.now()
+  updatedAt: number;
 }
 
 // Sorting Field and Direction Types
@@ -68,7 +65,6 @@ export interface TagTracker {
   count: number;
   active: boolean;
 }
-
 
 // API Types
 // Anilist API data types (for the "import from Anilist" feature)// types.ts
@@ -103,4 +99,57 @@ export interface AniListResponse {
   data: {
     Media: MediaResult | null;
   };
+}
+
+// Kitsu API types
+export interface KitsuPosterImage {
+  tiny: string;
+  small: string;
+  medium: string;
+  large: string;
+  original: string;
+}
+
+export interface KitsuMangaAttributes {
+  canonicalTitle: string;
+  titles: Record<string, string>;
+  abbreviatedTitles: string[];
+  synopsis: string | null;
+  startDate: string | null;
+  posterImage: KitsuPosterImage | null;
+  subtype: string; // "manga" | "manhwa" | "manhua" | "novel" | "oneshot" | "doujin"
+}
+
+export interface KitsuMangaRaw {
+  id: string;
+  type: "manga";
+  attributes: KitsuMangaAttributes;
+}
+
+// Flattened result shape — this is what getKitsuManga/fetchKitsuByTitle
+// actually return, distinct from the raw JSON:API resource (KitsuMangaRaw).
+export interface KitsuManga {
+  id: string;
+  title: string;
+  description: string;
+  genres: string[];
+  imageUrl: string;
+  format: string; // "manga" | "manhwa" | "manhua" | "novel" | "oneshot" | "doujin"
+  source: "kitsu";
+}
+
+export interface KitsuCategoryRaw {
+  id: string;
+  type: "categories";
+  attributes: {
+    title: string;
+  };
+}
+export interface KitsuSearchResponse {
+  data: KitsuMangaRaw[];
+}
+
+export interface KitsuMangaDetailResponse {
+  data: KitsuMangaRaw;
+  included?: KitsuCategoryRaw[];
 }
