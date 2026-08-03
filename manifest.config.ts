@@ -38,7 +38,7 @@ export default defineManifest({
     type: "module",
   },
   permissions: ["sidePanel", "contentSettings", "storage", "unlimitedStorage", "identity"],
-  host_permissions: ["<all_urls>", "https://graphql.anilist.co/*"],
+  host_permissions: ["<all_urls>", "https://graphql.anilist.co/*", "https://api.mangadex.org/*", "https://kitsu.io/api/edge/*"],
   side_panel: {
     default_path: "src/sidepanel/index.html",
   },

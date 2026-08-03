@@ -17,7 +17,6 @@ export function getSeriesSlug(url: string): string {
   return candidates.reduce((a, b) => (b.length > a.length ? b : a));
 }
 
-
 // Matches a chapter/episode number when it starts its own clean path segment,
 // e.g. "chapter-244", ".../chapter/244", "episode-19", ".../episode/19", or
 // "ep-528-white-ghost-9" (trailing episode-title text is ignored).
@@ -86,15 +85,76 @@ function extractImage(doc: Document): string | null {
   const image = getMeta(doc, "og:image");
   if (image) return image;
 
-  const images = doc.querySelectorAll("img");
-  const title = extractTitleRobust(doc, doc.URL);
+  const title = extractTitleRobust(doc, doc.URL).toLowerCase();
+  const titleWords = title.split(/\s+/).filter((word) => word.length >= 3);
+
+  const isLikelyUiImage = (img: HTMLImageElement) => {
+    const src = (img.getAttribute("src") || img.currentSrc || "").toLowerCase();
+    const alt = (img.alt || "").toLowerCase();
+    const className = (img.className || "").toString().toLowerCase();
+    const haystack = `${src} ${alt} ${className}`;
+
+    return [
+      "avatar",
+      "logo",
+      "icon",
+      "sprite",
+      "banner",
+      "thumbnail",
+      "thumb",
+      "button",
+      "badge",
+      "emoji",
+      "favicon"
+    ].some((token) => haystack.includes(token));
+  };
+
+  const scoreImage = (img: HTMLImageElement) => {
+    if (isLikelyUiImage(img)) return -Infinity;
+
+    const src = (img.getAttribute("src") || img.currentSrc || "").trim();
+    if (!src) return -Infinity;
+
+    let score = 0;
+    const alt = (img.alt || "").toLowerCase();
+    const className = (img.className || "").toString().toLowerCase();
+    const srcLower = src.toLowerCase();
+    const width = Number(img.getAttribute("width") || img.naturalWidth || 0);
+    const height = Number(img.getAttribute("height") || img.naturalHeight || 0);
+
+    if (height > 0 && width > 0) {
+      const ratio = height / width;
+      if (ratio >= 1.1) score += 8;
+      else if (ratio >= 0.9) score += 4;
+      else score -= 3;
+    }
+
+    if (alt.includes(title) || titleWords.some((word) => alt.includes(word))) score += 5;
+    if (className.includes("cover") || className.includes("poster")) score += 4;
+    if (srcLower.includes("cover") || srcLower.includes("poster")) score += 4;
+    if (srcLower.includes("series") || srcLower.includes("manga") || srcLower.includes("manhwa")) score += 2;
+
+    if (img.loading === "eager") score += 1;
+    if (img.getAttribute("decoding") === "async") score += 1;
+
+    return score;
+  };
+
+  const images = Array.from(doc.querySelectorAll("img"));
+  let bestSrc: string | null = null;
+  let bestElem: HTMLImageElement | null = null;
+  let bestScore = -Infinity;
+
   for (const img of images) {
-    if (img.alt?.includes(title)) {
-      return img.getAttribute("src") || null;
+    const score = scoreImage(img);
+    if (score > bestScore) {
+      bestScore = score;
+      bestSrc = img.getAttribute("src") || img.currentSrc || null;
+      bestElem = img;
     }
   }
 
-  return null;
+  return bestSrc;
 }
 
 export function scrapeGeneric(doc: Document, url: string): Omit<ScrapedManhwa, "totalChapters" | "chapters"> {
