@@ -15,9 +15,11 @@
   import RatingBar from "@/components/RatingBar.svelte";
   import GoToBtn from "@/components/Buttons/GoToBtn.svelte";
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
-  import Tag from "@/components/Tag.svelte";
+  import Tag from "@/components/TagManagers/Tag.svelte";
   import InfoBox from "@/components/PopupBoxes/InfoBox.svelte";
-  import EditTags from "@/components/EditTags.svelte";
+  import EditTags from "@/components/TagManagers/EditTags.svelte";
+  import Notes from "@/components/Notes.svelte";
+  import CompletedDate from "@/components/CompletedDate.svelte";
 
   // tracks open/close status of the side panel for view in library button
   chrome.runtime.connect({ name: "sidepanel-heartbeat" });
@@ -90,9 +92,9 @@
         return { ...chp, read: false };
       });
 
-      const finalChapters = chapters.map((chp) => {
+      const finalChapters = chapters.map((chp, i) => {
         if (chp.number === chapterNumber && !falsePrior) {
-          chapterNumber -= 1;
+          chapterNumber = i > 0 ? chapters[i - 1].number : chp.number;
           return { ...chp, read: false };
         }
         return chp;
@@ -101,7 +103,8 @@
       manhwaStore.update(selectedManhwa.id, {
         currentChapter: chapterNumber,
         status: "Reading",
-        chapters: finalChapters
+        chapters: finalChapters,
+        completedOn: null // Clear the completedOn date when marking as reading
       });
     }
   }
@@ -123,7 +126,23 @@
 
   function handleStatusSelect(label: string) {
     if (selectedManhwa && (statusValues as readonly string[]).includes(label)) {
-      manhwaStore.update(selectedManhwa.id, { status: statusValues.find((s) => s === label) });
+      if (label === "Completed") {
+        // Mark all chapters as read when status is set to "Completed"
+        const updatedChapters = selectedManhwa.chapters.map((chp) => ({ ...chp, read: true }));
+        const currentChapter =
+          updatedChapters.length > 0
+            ? updatedChapters[updatedChapters.length - 1].number
+            : selectedManhwa.currentChapter;
+        const completedOn = Date.now();
+        manhwaStore.update(selectedManhwa.id, {
+          status: label,
+          chapters: updatedChapters,
+          completedOn,
+          currentChapter
+        });
+      } else {
+        manhwaStore.update(selectedManhwa.id, { status: statusValues.find((s) => s === label) });
+      }
     }
   }
 
@@ -274,6 +293,7 @@
         {/if}
         <EditTags manhwa={selectedManhwa} />
       </div>
+      <Notes manhwa={selectedManhwa} />
       {#if selectedManhwa.description}
         <DescriptionDrawer
           description={selectedManhwa.description}
@@ -283,6 +303,7 @@
       {/if}
       <div class="button-row">
         <Button label="Open Library" colorFrom="#1e293b" colorTo="#334155" onclick={openPopup} />
+        <CompletedDate manhwa={selectedManhwa} />
         <Button label="Delete" colorFrom="#7f1d1d" colorTo="#450a0a" onclick={() => (showDeleteConfirm = true)} />
       </div>
     </div>
@@ -485,6 +506,7 @@
 
   .button-row {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     margin-top: 10px;
   }

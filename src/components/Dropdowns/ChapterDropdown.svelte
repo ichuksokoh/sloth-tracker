@@ -12,7 +12,7 @@
 
   let currentChapterLabel = $derived(
     manhwa.chapters.find((c) => c.number === manhwa.currentChapter)?.label ??
-      `Ch. ${manhwa.chapters[0].label}`,
+      `${manhwa.chapters[0].label}`,
   );
 
   function toggle() {

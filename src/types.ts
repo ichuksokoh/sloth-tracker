@@ -5,6 +5,7 @@ export type ChapterUnit = "Ch." | "Ep.";
 export interface ChapterMatch {
   number: number;
   unit: ChapterUnit;
+  volume?: string;
 }
 
 export interface TitleCandidate {
@@ -56,11 +57,11 @@ export interface Manhwa {
   notes?: string;
   createdAt: number; // Date.now()
   updatedAt: number;
-  finishedAt?: number; // optional — when you marked it as completed
+  completedOn?: number | null; // optional — when you marked it as completed, can also be null if you want to clear it
 }
 
 // Sorting Field and Direction Types
-export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress";
+export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress" | "Completed Date";
 export type SortDirection = "asc" | "desc";
 
 // Tag Tracker type

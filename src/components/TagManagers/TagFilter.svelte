@@ -1,7 +1,7 @@
 <script lang="ts">
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import * as tagManager from "@/lib/tagManager";
-  import InfoBox from "./PopupBoxes/InfoBox.svelte";
+  import InfoBox from "../PopupBoxes/InfoBox.svelte";
   import Tag from "./Tag.svelte";
   import type { TagTracker } from "@/types";
 

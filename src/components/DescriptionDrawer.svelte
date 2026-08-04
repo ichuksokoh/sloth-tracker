@@ -1,10 +1,14 @@
 <script lang="ts">
-  let {
-    description,
-    open,
-    onToggle,
-  }: { description: string; open: boolean; onToggle: (next: boolean) => void } =
-    $props();
+  import { slide } from "svelte/transition";
+  import { cubicOut } from "svelte/easing";
+
+  interface DescriptionDrawerProps {
+    description: string;
+    open: boolean;
+    onToggle: (next: boolean) => void;
+  }
+
+  let { description, open, onToggle }: DescriptionDrawerProps = $props();
 
   function toggle() {
     onToggle(!open);
@@ -12,51 +16,43 @@
 </script>
 
 <div class="drawer">
-  <button
-    class="drawer-trigger"
-    class:is-open={open}
-    onclick={toggle}
-    aria-expanded={open}
-  >
+  <button class="drawer-trigger" class:is-open={open} onclick={toggle} aria-expanded={open}>
     <span>Description</span>
-    <svg
-      class="chevron"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.5"
-    >
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
       <polyline points="6 9 12 15 18 9" />
     </svg>
   </button>
-
-  <div class="drawer-body" class:is-open={open}>
-    <div class="drawer-content">
-      <p>{description}</p>
+  {#if open}
+    <div transition:slide={{ duration: 400, easing: cubicOut }} class="drawer-body" class:is-open={open}>
+      <div class="drawer-content">
+        <p>{description}</p>
+      </div>
     </div>
-  </div>
+  {/if}
 </div>
 
 <style>
   .drawer {
     display: flex;
     flex-direction: column;
+    gap: 8px;
   }
 
   .drawer-trigger {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
     width: 100%;
-    padding: 8px 0 4px;
-    background: none;
-    border: none;
-    color: #94a3b8;
-    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 12px;
     font-weight: 500;
+    color: #acb1b8;
     cursor: pointer;
-    transition: color 150ms ease;
+    background: transparent;
+    border: none;
+    transition: color 250ms ease-in-out;
   }
 
   .drawer-trigger:hover {
@@ -84,8 +80,14 @@
   }
 
   .drawer-content {
-    overflow: hidden;
-    min-height: 0;
+    width: 100%;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    min-width: 40%;
+    min-height: 40px;
+    padding: 10px 12px;
+    color: #e8ebf0;
   }
 
   .drawer-content p {

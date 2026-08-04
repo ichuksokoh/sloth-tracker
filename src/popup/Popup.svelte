@@ -12,14 +12,14 @@
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import SortByDropdown from "@/components/Dropdowns/SortByDropdown.svelte";
   import SortByDirBtn from "@/components/Buttons/SortByDirBtn.svelte";
-  import TagFilter from "@/components/TagFilter.svelte";
+  import TagFilter from "@/components/TagManagers/TagFilter.svelte";
 
   let searchQuery = $state("");
   let debouncedQuery = $state(""); // updates after typing pauses, drives the filter
   let isSearching = $state(false); // true during the "waiting to settle" window
   let status = $state("All"); // 'All', 'Reading', 'Plan To Read', 'Completed', 'Dropped'
   const statusValues = ["All", "Plan To Read", "Reading", "Completed", "Dropped"] as const;
-  const sortByOptions = ["Title", "Recently Added", "Recently Updated", "Rating", "Progress"];
+  const sortByOptions = ["Title", "Recently Added", "Recently Updated", "Rating", "Progress", "Completed Date"];
 
   const fieldComparators: Record<SortField, (a: Manhwa, b: Manhwa) => number> = {
     Title: (a, b) => a.title.localeCompare(b.title),
@@ -30,6 +30,11 @@
       const aP = a.totalChapters ? a.currentChapter / a.totalChapters : 0;
       const bP = b.totalChapters ? b.currentChapter / b.totalChapters : 0;
       return aP - bP;
+    },
+    "Completed Date": (a, b) => {
+      const aDate = a.completedOn ?? 0;
+      const bDate = b.completedOn ?? 0;
+      return aDate - bDate;
     }
   };
 

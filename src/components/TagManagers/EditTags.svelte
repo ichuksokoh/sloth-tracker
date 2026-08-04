@@ -1,7 +1,7 @@
 <script lang="ts">
   import TagModifier from "./TagModifier.svelte";
   import Tag from "./Tag.svelte";
-  import InfoBox from "./PopupBoxes/InfoBox.svelte";
+  import InfoBox from "../PopupBoxes/InfoBox.svelte";
   import type { Tags } from "@/types";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import { cubicOut } from "svelte/easing";
@@ -34,12 +34,6 @@
   let showInfoBox = $state(false);
 
   let addATag = $state(false);
-
-  $effect(() => {
-    console.log("Tags to be removed:", $state.snapshot(tagsToBeRemoved));
-    console.log("Custom tags to add:", $state.snapshot(customTagsToAdd));
-    console.log("Default tags to add:", $state.snapshot(defaultTagsToAdd));
-  });
 
   // Function to determine if a tag is removable (i.e., not already marked for removal or addition)
   const removable = (tag: Tags) => {
