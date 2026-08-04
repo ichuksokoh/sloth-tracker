@@ -9,7 +9,7 @@
     children: Snippet;
     closeLabel?: string;
     secondaryLabel?: string;
-    onClick?: () => void;
+    onClick?: (() => void) | (() => Promise<void>);
     tagPicked?: boolean;
   }
 

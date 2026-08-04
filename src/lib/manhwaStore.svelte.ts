@@ -61,8 +61,8 @@ export const manhwaStore = {
     const response = await chrome.runtime.sendMessage({ type: "manhwa:add", manhwa: item });
     return response?.manhwa as Manhwa | undefined;
   },
-  async update(id: string, patch: Partial<Manhwa>) {
-    await chrome.runtime.sendMessage({ type: "manhwa:update", id, manhwa: patch });
+  async update(id: string, patch: Partial<Manhwa>, customUpdate: boolean = false) {
+    await chrome.runtime.sendMessage({ type: "manhwa:update", id, manhwa: patch, customUpdate });
   },
   async remove(id: string) {
     await chrome.runtime.sendMessage({ type: "manhwa:remove", id });

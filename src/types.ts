@@ -35,6 +35,7 @@ export interface ScrapedManhwa {
 
 // Types for the main library data structure
 export type ReadStatus = "Reading" | "Plan To Read" | "Completed" | "Dropped";
+export type Tags = { tagName: string, isCustom: boolean }
 
 export interface Manhwa {
   id: string; // crypto.randomUUID() at creation time
@@ -49,11 +50,13 @@ export interface Manhwa {
   currentChapter: number;
   totalChapters?: number; // optional — often unknown/ongoing
   chapters: ScrapedChapter[];
-  tags: string[];
+  tags: Tags[];
+  ogTags: Tags[]; // original tags from the source, for reference
   rating?: number; // optional — 1-10 allows decimal ratings like 7.5
   notes?: string;
   createdAt: number; // Date.now()
   updatedAt: number;
+  finishedAt?: number; // optional — when you marked it as completed
 }
 
 // Sorting Field and Direction Types
@@ -64,6 +67,8 @@ export type SortDirection = "asc" | "desc";
 export interface TagTracker {
   count: number;
   active: boolean;
+  custom?: boolean; // optional — if true, this tag was added by the user and not scraped from a source
+  ogCount: number; // tracks count aside from what user sees
 }
 
 // API Types

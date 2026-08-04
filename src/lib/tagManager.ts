@@ -1,18 +1,33 @@
-import type { TagTracker } from "@/types";
+import type { Tags, TagTracker } from "@/types";
 
-export function updateAllTags(allTags: Record<string, TagTracker>, tagsToAdd: string[], change: number = 1) {
+export function updateAllTags(
+  allTags: Record<string, TagTracker>,
+  tagsToAdd: Tags[],
+  change: number = 1,
+  isCustomUpdate: boolean = false
+) {
   for (const tag of tagsToAdd) {
-    if (allTags[tag]) {
-      allTags[tag].count += change;
+    if (allTags[tag.tagName]) {
+      if (tag.isCustom) {
+        allTags[tag.tagName].custom = true;
+      }
+      allTags[tag.tagName].count += change;
+      // only increment ogCount if changeType is not custom
+      allTags[tag.tagName].ogCount += !isCustomUpdate ? change : 0;
     } else {
-      allTags[tag] = { count: change, active: false };
+      allTags[tag.tagName] = {
+        count: change,
+        active: false,
+        custom: tag.isCustom,
+        ogCount: !isCustomUpdate ? change : 1
+      };
     }
   }
   const tags = Object.keys(allTags);
   // Even if we add a tag for a negative incrrement, we still remove it since count < 0 so no issue there
-  for (const tag of tags) {
-    if (allTags[tag].count <= 0) {
-      delete allTags[tag];
+  for (const tagName of tags) {
+    if (allTags[tagName].ogCount <= 0 || (allTags[tagName].count <= 0 && allTags[tagName].custom)) {
+      delete allTags[tagName];
     }
   }
 }

@@ -70,7 +70,7 @@
     const hiddenMatches = showHiddenOnly ? a.hidden : !a.hidden;
     // Show all is defualt for filtering purposes user does not actually see this
     const showAll = Object.values(allTags).every((tag) => !tag.active);
-    const tagsMatches = a.tags.some((tag) => allTags[tag] && allTags[tag].active) || showAll;
+    const tagsMatches = a.tags.some((tag) => allTags[tag.tagName] && allTags[tag.tagName].active) || showAll;
     return (titleSim >= 0.55 || titleIncludes) && statusMatches && favoriteMatches && hiddenMatches && tagsMatches;
   };
 

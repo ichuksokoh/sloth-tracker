@@ -3,6 +3,7 @@
   import * as tagManager from "@/lib/tagManager";
   import InfoBox from "./PopupBoxes/InfoBox.svelte";
   import Tag from "./Tag.svelte";
+  import type { TagTracker } from "@/types";
 
   interface TagFilterProps {
     size?: number;
@@ -28,7 +29,19 @@
     }
   }
 
-  let tagsToDisplay = $derived(showHidden ? manhwaStore.hiddenTags : manhwaStore.allTags);
+  function correctTagsToDisplay(tags: Record<string, TagTracker>) {
+    const correctedTags: Record<string, TagTracker> = {};
+    for (const [tagName, tracker] of Object.entries(tags)) {
+      if (tracker.count > 0) {
+        correctedTags[tagName] = tracker;
+      }
+    }
+    return correctedTags;
+  }
+
+  let tagsToDisplay = $derived(
+    showHidden ? correctTagsToDisplay(manhwaStore.hiddenTags) : correctTagsToDisplay(manhwaStore.allTags)
+  );
   let selected = $derived(
     Object.fromEntries(Object.entries(tagsToDisplay).filter(([_, tracker]) => tracker.active))
   );

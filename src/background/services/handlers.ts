@@ -55,7 +55,7 @@ export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.M
   },
 
   "manhwa:update": async (msg) => {
-    await manhwaDB.updateManhwa(msg.id, msg.manhwa);
+    await manhwaDB.updateManhwa(msg.id, msg.manhwa, msg.customUpdate);
     return { ok: true };
   },
 

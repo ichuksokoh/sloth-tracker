@@ -17,6 +17,7 @@
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import Tag from "@/components/Tag.svelte";
   import InfoBox from "@/components/PopupBoxes/InfoBox.svelte";
+  import EditTags from "@/components/EditTags.svelte";
 
   // tracks open/close status of the side panel for view in library button
   chrome.runtime.connect({ name: "sidepanel-heartbeat" });
@@ -32,7 +33,16 @@
   let selectedManhwa = $derived<Manhwa | undefined>(manhwaStore.list.find((m) => m.id === selectedId));
 
   let shownTags = $derived(
-    selectedManhwa?.tags.slice(0, selectedManhwa.tags.length > 4 ? 3 : selectedManhwa.tags.length) ?? []
+    [...(selectedManhwa?.tags ?? [])]
+      .sort((a, b) => {
+        const aIsCustom = a.isCustom ? 1 : 0;
+        const bIsCustom = b.isCustom ? 1 : 0;
+        if (aIsCustom !== bIsCustom) {
+          return aIsCustom - bIsCustom; // Custom tags come after default tags
+        }
+        return a.tagName.localeCompare(b.tagName); // Sort alphabetically within each group
+      })
+      .slice(0, selectedManhwa && selectedManhwa.tags.length > 4 ? 3 : (selectedManhwa?.tags.length ?? 0))
   );
   let showMore = $derived(selectedManhwa ? selectedManhwa.tags.length > 4 : false);
   let moreTags = $derived(selectedManhwa && shownTags ? selectedManhwa.tags.length - shownTags.length : 0);
@@ -196,9 +206,18 @@
 <InfoBox bind:open={openClosetags} title="Tags">
   <div class="all-tags">
     {#if selectedManhwa && selectedManhwa?.tags.length > 0}
-      {#each selectedManhwa.tags as tag, i (i)}
-        <Tag text={tag} onClick={() => handleTagClick(tag)} />
-      {/each}
+      <h3>Default Tags</h3>
+      <div class="default-tags">
+        {#each selectedManhwa.tags.filter((tag) => !tag.isCustom) as tag, i (i)}
+          <Tag text={tag.tagName} onClick={() => handleTagClick(tag.tagName)} />
+        {/each}
+      </div>
+      <h3>Custom Tags</h3>
+      <div class="custom-tags">
+        {#each selectedManhwa.tags.filter((tag) => tag.isCustom) as tag, i (i)}
+          <Tag text={tag.tagName} onClick={() => handleTagClick(tag.tagName)} />
+        {/each}
+      </div>
     {:else}
       <p>No tags available.</p>
     {/if}
@@ -248,11 +267,12 @@
       </div>
       <div class="genre-tags">
         {#each shownTags as tag, i (i)}
-          <Tag text={tag} onClick={() => handleTagClick(tag)} />
+          <Tag text={tag.tagName} onClick={() => handleTagClick(tag.tagName)} />
         {/each}
         {#if showMore}
           <Tag text={`+${moreTags} more`} onClick={() => (openClosetags = true)} />
         {/if}
+        <EditTags manhwa={selectedManhwa} />
       </div>
       {#if selectedManhwa.description}
         <DescriptionDrawer
@@ -390,33 +410,70 @@
     height: 45px;
     flex-direction: row;
     justify-content: center;
+    /* max-width: 250px; */
   }
 
   .all-tags {
+    text-align: center;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  .default-tags {
+    padding: 10px 3px;
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
     justify-content: center;
     align-items: center;
-    max-height: 280px;
+    max-height: 175px;
     overflow-y: auto;
   }
 
-  .all-tags::-webkit-scrollbar {
+  .default-tags::-webkit-scrollbar {
     width: 6px;
   }
 
-  .all-tags::-webkit-scrollbar-track {
+  .default-tags::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .all-tags::-webkit-scrollbar-thumb {
+  .default-tags::-webkit-scrollbar-thumb {
     background: #334155;
     border-radius: 999px;
     width: 0px;
   }
 
-  .all-tags::-webkit-scrollbar-thumb:hover {
+  .default-tags::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #41439d, #5a63ad);
+  }
+
+  .custom-tags {
+    padding: 5px 3px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  .custom-tags::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-tags::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-tags::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 999px;
+    width: 0px;
+  }
+
+  .custom-tags::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(90deg, #41439d, #5a63ad);
   }
 
