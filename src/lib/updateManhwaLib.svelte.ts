@@ -19,7 +19,7 @@ export async function updateExistingManhwa(scraped: ScrapedManhwa, url: string) 
   }
   
   const newChapters = [...$state.snapshot(existingManhwa.chapters), ...updatedChps];
-  const newTotalChapters = Math.max(...newChapters.map((ch) => ch.number));
+  const newTotalChapters = newChapters.length > (existingManhwa?.totalChapters || 0) ? newChapters.length : existingManhwa.totalChapters;
 
   await manhwaStore.update(existingManhwa.id, {
     sourceUrl: scraped.sourceUrl ?? existingManhwa.sourceUrl,

@@ -13,20 +13,14 @@
   };
   let total = $derived(manhwa.totalChapters ?? manhwa.chapters.length);
   let current = $derived(manhwa.currentChapter);
-  let currentLabel = $derived(
-    manhwa.chapters.find((c) => c.number === current)?.label ??
-      `Ch. ${current}`,
-  );
+  let currentLabel = $derived(manhwa.chapters.find((c) => c.number === current)?.label ?? `Ch. ${current}`);
   let totalLabel = $derived(
-    manhwa.totalChapters
-      ? (manhwa.chapters.find((c) => c.number === total)?.label ??
-          `Ch. ${total}`)
-      : undefined,
+    manhwa.totalChapters ? (manhwa.chapters.find((c) => c.number === total)?.label ?? `Ch. ${total}`) : undefined
   );
   let percent = $derived(
     total && total > 0 && manhwa.chapters.filter((c) => c.read).length > 0
       ? Math.min(100, round((current / total) * 100, 1))
-      : 0,
+      : 0
   );
 </script>
 
@@ -91,10 +85,12 @@
   }
 
   .progress-fill {
+    will-change: width;
+    contain: layout paint;
     height: 100%;
     background: linear-gradient(90deg, #27299b 0%, #4f46e5 50%, #818cf8 100%);
     border-radius: 999px;
-    transition: width 500ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width 1000ms cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
   }
 </style>

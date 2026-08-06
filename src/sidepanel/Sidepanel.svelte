@@ -351,6 +351,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
     padding: 0 4px 4px;
   }
 
@@ -416,6 +417,8 @@
     padding: 0 4px;
     min-width: 320px;
     max-width: 450px;
+    width: 100%;
+    /* align-self: stretch; */
   }
   .controls-row {
     display: flex;

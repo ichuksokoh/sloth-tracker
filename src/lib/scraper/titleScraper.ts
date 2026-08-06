@@ -1,4 +1,4 @@
-import { getMeta } from "@/lib/scraper/genericScraper";
+import { getMeta, getSpacedText } from "@/lib/scraper/genericScraper";
 import type { TitleCandidate } from "@/types";
 
 /**
@@ -14,15 +14,20 @@ function normalizeTitle(title: string, domainName: string = ""): string {
   t = t.replace(/\s*[-|~]?\s*chapter\s+\d+.*$/i, "");
 
   // 3. Remove common site suffixes after a hyphen or pipe (e.g., " - Lua Comics", " - Asura Scans")
-  t = t.replace(/\s*[-|]\s*.*?(scans?|comics?|scanlations?|manga|manhwa|manhua|webtoons?|toons?)\s*$/i, "");
+  // Requires REAL whitespace around the separator, so a hyphen inside the
+  // title itself (e.g. "Star-Embracing Swordmaster") isn't mistaken for a
+  // " - Site Name" suffix and doesn't swallow the whole title.
+  t = t.replace(/\s+[-|]\s+.*?(scans?|comics?|scanlations?|manga|manhwa|manhua|webtoons?|toons?)\s*$/i, "");
 
-  // 4. Remove generic trailing media types (e.g., " Title Manga Online")
-  t = t.replace(/\s+(manga|manhwa|manhua|webtoon)s?\s*(online|free)?\s*$/i, "");
+  // 4. Remove generic trailing media types and any SEO filler that follows
+  // them (e.g., " Title Manga Online", " Title Manga Online for Free").
+  // Anything after "manga/manhwa/manhua/webtoon" as a trailing word is junk.
+  t = t.replace(/\s+(manga|manhwa|manhua|webtoon)s?\b.*$/i, "");
 
   // 5. Dynamically strip the host domain name if it appears after a separator
   if (domainName) {
     // e.g., strips " - luacomics" or " ~ drake"
-    const domainRegex = new RegExp(`\\s*[-|~]\\s*.*?${domainName}.*$`, "i");
+    const domainRegex = new RegExp(`\\s+[-|~]\\s+.*?${domainName}.*$`, "i");
     t = t.replace(domainRegex, "");
   }
 
@@ -83,15 +88,18 @@ export function extractTitleRobust(doc: Document, url: string = window.location.
   //---------------------------------
   // headings
   //---------------------------------
+  // Use getSpacedText instead of textContent — nested spans/elements inside
+  // headings (e.g. alt-title lists glued right up against the main title)
+  // otherwise get concatenated with no space, e.g. "VagabondAvare; ...".
   doc.querySelectorAll("h1,h2,h3").forEach((el) => {
-    addCandidate(candidates, el.textContent, el.tagName.toLowerCase(), domainName);
+    addCandidate(candidates, getSpacedText(el), el.tagName.toLowerCase(), domainName);
   });
 
   //---------------------------------
   // schema.org
   //---------------------------------
   doc.querySelectorAll('[itemprop="name"]').forEach((el) => {
-    addCandidate(candidates, el.textContent, "itemprop=name", domainName);
+    addCandidate(candidates, getSpacedText(el), "itemprop=name", domainName);
   });
 
   //---------------------------------

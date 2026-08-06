@@ -8,19 +8,117 @@ export function getMeta(doc: Document, property: string): string | null {
   return el?.getAttribute("content")?.trim() || null;
 }
 
-export function getSeriesSlug(url: string): string {
-  const path = new URL(url).pathname;
-  const segments = path.split("/").filter(Boolean);
-  const skip = new Set(["series", "manga", "manhwa", "comic", "read", "title", "chapter", "list", "browse"]);
-  // Reject a segment if EVERY hyphen-delimited token in it is a skip word —
-  // handles compound path segments like Mangago's "read-manga" (tokens
-  // "read" + "manga", both skippable) that a plain whole-segment check misses.
-  const isSkippable = (s: string) => s.toLowerCase().split("-").every((tok) => skip.has(tok));
-  const candidates = segments.filter((s) => !isSkippable(s) && !/^\d+$/.test(s));
-  if (candidates.length === 0) return "";
-  return candidates.reduce((a, b) => (b.length > a.length ? b : a));
+export function getSeriesSlug(input: string | string[]): string {
+  const skip = new Set([
+    "series",
+    "manga",
+    "manhwa",
+    "comic",
+    "read",
+    "title",
+    "chapter",
+    "list",
+    "browse",
+    "mr",
+    "pg"
+  ]);
+
+  const isSkippable = (s: string) =>
+    s
+      .toLowerCase()
+      .split("-")
+      .every((tok) => skip.has(tok));
+
+  // Helper to parse a single URL for opaque IDs or standard segments
+  const parseSingleUrl = (url: string): { opaqueId?: string; candidates: string[] } => {
+    try {
+      const path = new URL(url).pathname;
+      const segments = path.split("/").filter(Boolean);
+
+      // Opaque ID / Numeric ID Detection (e.g., FlameComics /series/153/)
+      const keywordIndices = ["series", "manga", "comic", "title"];
+      for (let i = 0; i < segments.length - 1; i++) {
+        if (keywordIndices.includes(segments[i].toLowerCase())) {
+          const nextSeg = segments[i + 1];
+          // Matches pure numbers or hex-like hashes (e.g., b0cd61db4a0587af)
+          if (/^\d+$/.test(nextSeg) || /^[a-f0-9]{8,}$/i.test(nextSeg)) {
+            return { opaqueId: nextSeg, candidates: [] };
+          }
+        }
+      }
+
+      // Standard non-skippable segment extraction
+      const candidates = segments.filter((s) => !isSkippable(s) && !/^\d+$/.test(s));
+      return { candidates };
+    } catch {
+      return { candidates: [] };
+    }
+  };
+
+  // CASE 1: Array of URLs provided -> Frequency Voting Algorithm
+  if (Array.isArray(input)) {
+    if (input.length === 0) return "";
+
+    const segmentCounts = new Map<string, number>();
+    let totalProcessed = 0;
+
+    for (const url of input) {
+      const { opaqueId, candidates } = parseSingleUrl(url);
+
+      if (opaqueId) {
+        segmentCounts.set(opaqueId, (segmentCounts.get(opaqueId) || 0) + 2);
+        totalProcessed++;
+        continue;
+      }
+
+      const uniqueSegmentsInUrl = new Set(candidates);
+      for (const seg of uniqueSegmentsInUrl) {
+        segmentCounts.set(seg, (segmentCounts.get(seg) || 0) + 1);
+      }
+      if (candidates.length > 0) totalProcessed++;
+    }
+
+    if (totalProcessed === 0) return "";
+
+    let bestSlug = "";
+    let highestScore = -1;
+
+    for (const [seg, count] of segmentCounts.entries()) {
+      const frequencyRatio = count / totalProcessed;
+      const score = frequencyRatio * 100 + seg.length * 0.1;
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestSlug = seg;
+      }
+    }
+
+    return bestSlug;
+  }
+
+  // CASE 2: Single URL string provided -> Fallback behavior
+  else if (typeof input === "string") {
+    const { opaqueId, candidates } = parseSingleUrl(input);
+    if (opaqueId) return opaqueId;
+    if (candidates.length === 0) return "";
+
+    return candidates.reduce((a, b) => (b.length > a.length ? b : a));
+  }
+
+  return "";
 }
 
+export function getSpacedText(el: Element): string {
+  let text = "";
+  el.childNodes.forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent ?? "";
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      text += ` ${getSpacedText(node as Element)} `;
+    }
+  });
+  return text;
+}
 // Matches a chapter/episode number when it appears as its own token within
 // a path segment, either at the very start or immediately after a "-"/"_"
 // separator, e.g. "chapter-244", ".../chapter/244", "episode-19",

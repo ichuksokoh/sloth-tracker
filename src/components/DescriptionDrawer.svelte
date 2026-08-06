@@ -35,6 +35,7 @@
   .drawer {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 8px;
   }
 
@@ -70,9 +71,9 @@
   }
 
   .drawer-body {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 400ms cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .drawer-body.is-open {

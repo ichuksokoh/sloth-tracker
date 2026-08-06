@@ -14,11 +14,13 @@ export interface TitleCandidate {
 }
 
 export interface ScrapedChapter {
-  number: number;
+  number: number; // signifies i + 1 instead of doing i + 1 everywhere
   label: string; // e.g. "Chapter 244", "Chp. 2.5"
   url: string;
   read: boolean;
 }
+
+export type DraftChapter = Omit<ScrapedChapter, "number" | "read">;
 
 export interface ChapterScraperItem {
   anchors: Element[];

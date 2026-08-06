@@ -1,5 +1,5 @@
-import { extractChapters } from "./chapterScraper";
-import type { ChapterScraperItem, ScrapedChapter } from "@/types";
+import { chapterDedupeKey, extractChapters, extractChaptersUnsorted, finalizeChapters } from "./chapterScraper";
+import type { ChapterScraperItem, ScrapedChapter, DraftChapter } from "@/types";
 import { waitForDomToSettle } from "./infiniteScrollChpScraper";
 
 const MAX_PAGES = 100; 
@@ -128,36 +128,39 @@ export async function scrapePaginationChapters(
   let currentDoc = doc;
   let currentUrl = url;
   let nextElement = findNextElement(currentDoc);
-  
-  if (!nextElement) return null; // No pagination found, fallback to infinite scroll
+
+  if (!nextElement) return null; 
 
   console.log("[Pagination] Pagination detected. Starting hybrid loop...");
 
-  const uniqueChapters = new Map<number, ScrapedChapter>();
-  const initialScrape = extractChapters(currentDoc, currentUrl);
-  for (const ch of initialScrape.chapters) uniqueChapters.set(ch.number, ch);
+  // Accumulate lightweight drafts across pages
+  const uniqueDrafts = new Map<string, DraftChapter>();
+  const initialScrape = extractChaptersUnsorted(currentDoc, currentUrl);
+  
+  for (const d of initialScrape.drafts) {
+    uniqueDrafts.set(chapterDedupeKey(d.label, d.url), d);
+  }
 
   let stableCycles = 0;
-  let previousCount = uniqueChapters.size;
+  let previousCount = uniqueDrafts.size;
   const visitedUrls = new Set<string>([url]);
 
   for (let cycle = 0; cycle < MAX_PAGES && stableCycles < REQUIRED_STABLE_CYCLES; cycle++) {
     nextElement = findNextElement(currentDoc);
     if (!nextElement) {
-        console.log("[Pagination] Reached end of pagination.");
-        break;
+      console.log("[Pagination] Reached end of pagination.");
+      break;
     }
 
     const href = getValidHref(nextElement, currentUrl);
 
     if (href) {
-      // STRATEGY A: Fetch Detached DOM (Fastest, avoids hard reloading the current page)
       if (visitedUrls.has(href)) {
-          console.log("[Pagination] Loop detected. Terminating.");
-          break;
+        console.log("[Pagination] Loop detected. Terminating.");
+        break;
       }
       visitedUrls.add(href);
-      
+
       console.log(`[Pagination] Background fetching: ${href}`);
       try {
         const response = await fetch(href);
@@ -169,37 +172,32 @@ export async function scrapePaginationChapters(
         console.error("[Pagination] Fetch failed", err);
         break;
       }
-
     } else {
-      // STRATEGY B: Live DOM Click (JS/React SPAs like Comix.to and Luacomics)
-      // Note: We can only click live if we are currently looking at the live DOM
       if (currentDoc !== document) {
-          console.error("[Pagination] Cannot execute JS click on a detached DOM.");
-          break;
+        console.error("[Pagination] Cannot execute JS click on a detached DOM.");
+        break;
       }
 
       console.log("[Pagination] Simulating JS Click...");
       nextElement.click();
-      
-      // Give the framework time to fetch data and re-render the DOM
-      await waitForDomToSettle(500, 100); 
-      
-      // Update variables to reflect the newly mutated live DOM
-      currentDoc = document; 
-      currentUrl = window.location.href; 
+      await waitForDomToSettle(500, 100);
+
+      currentDoc = document;
+      currentUrl = window.location.href;
     }
 
-    const pageScrape = extractChapters(currentDoc, currentUrl);
-    for (const ch of pageScrape.chapters) uniqueChapters.set(ch.number, ch);
+    const pageScrape = extractChaptersUnsorted(currentDoc, currentUrl);
+    for (const d of pageScrape.drafts) {
+      uniqueDrafts.set(chapterDedupeKey(d.label, d.url), d);
+    }
 
-    const newCount = uniqueChapters.size;
+    const newCount = uniqueDrafts.size;
     stableCycles = newCount === previousCount ? stableCycles + 1 : 0;
     previousCount = newCount;
   }
 
-  const finalChapters = Array.from(uniqueChapters.values()).sort((a, b) => a.number - b.number);
-  
-  // Note: We ignore anchors here because extracting anchors from 10 different pages 
-  // (some of which are detached) breaks UI functionality later.
-  return { anchors: initialScrape.anchors, chapters: finalChapters };
+  return { 
+    anchors: initialScrape.anchors, 
+    chapters: finalizeChapters(Array.from(uniqueDrafts.values())) 
+  };
 }

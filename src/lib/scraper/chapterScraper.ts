@@ -1,9 +1,12 @@
-import { getSeriesSlug, extractChapterFromSegments } from "./genericScraper";
-import type { ScrapedChapter, ChapterScraperItem } from "@/types";
+import { getSeriesSlug, extractChapterFromSegments, getSpacedText } from "./genericScraper";
+import type { ScrapedChapter, ChapterScraperItem, ChapterUnit, DraftChapter } from "@/types";
 
 const MAX_PLAUSIBLE_CHAPTER = 5000;
 
-function formatChapterLabel(number: number, volume?: string, unit: "Ch." | "Ep." = "Ch."): string {
+// Extremely lightweight draft that only carries what we need to dedupe
+// and construct the final object.
+
+function formatChapterLabel(number: number, volume?: string, unit: ChapterUnit = "Ch."): string {
   return volume ? `Vol. ${volume} ${unit} ${number}` : `${unit} ${number}`;
 }
 
@@ -15,118 +18,110 @@ function resolveUrl(href: string, base: string): string {
   }
 }
 
-// Composite identity key: a chapter is only "the same chapter" if both its
-// number AND its volume (when present) match. Prevents e.g. Vol.9 Ch.4 from
-// clobbering a plain Ch.4 that belongs to a different, earlier point in the
-// series — sites sometimes switch from global chapter numbering to
-// volume-relative numbering partway through, and the two schemes can
-// legitimately reuse the same small numbers.
-function chapterKey(number: number, volume?: string): string {
-  return volume ? `v${volume}:${number}` : `${number}`;
+const TEXT_PATTERN = /^(?:vol\.?\s*(\d+)\s*)?(?:(chapter|ch\.?)|(episode|ep\.?))\s*(\d+(?:\.\d+)?)/i;
+
+// Centralized deduplication logic.
+// You mentioned wanting the option to use both label and URL — this combines them safely.
+export function chapterDedupeKey(label: string, url: string): string {
+  return `${label}|${url}`;
 }
 
-// Volume-scoped chapters (numbered relative to their volume) sort after all
-// globally-numbered chapters, then by volume, then by number within volume.
-// Globally-numbered chapters just sort by number. This matches the common
-// case where a series starts with continuous numbering and later switches
-// to per-volume numbering; it's a heuristic, not guaranteed for every site.
-function sortChapters(chapters: ScrapedChapter[]): ScrapedChapter[] {
-  const volOf = (c: ScrapedChapter) => c.label.match(/^Vol\.\s*(\d+(?:\.\d+)?)/i)?.[1];
-  return [...chapters].sort((a, b) => {
-    const va = volOf(a);
-    const vb = volOf(b);
-    if (!va && !vb) return a.number - b.number;
-    if (!va) return -1;
-    if (!vb) return 1;
-    const volDiff = parseFloat(va) - parseFloat(vb);
-    return volDiff !== 0 ? volDiff : a.number - b.number;
-  });
-}
-
-// Primary strategy: chapter number lives in the href itself
-// (e.g. /series/nano-machine/chapter-244), scoped to this series' slug.
-function extractFromHrefs(doc: Document, url: string): ChapterScraperItem {
+export function extractChaptersUnsorted(
+  doc: Document,
+  url: string
+): { anchors: Element[]; drafts: DraftChapter[] } {
   const slug = getSeriesSlug(url).toLowerCase();
-  if (!slug) return { anchors: [], chapters: [] };
-  const anchors = Array.from(doc.querySelectorAll("a[href]")).filter((a) =>
-    (a.getAttribute("href") ?? "").toLowerCase().includes(slug)
-  );
-
-  const byKey = new Map<string, ScrapedChapter>();
-  const anchorsToGetChpContainer = [];
-  for (const a of anchors) {
-    const href = a.getAttribute("href") ?? "";
-    const match = extractChapterFromSegments(href);
-    if (match === null || match.number > MAX_PLAUSIBLE_CHAPTER) continue;
-    const key = chapterKey(match.number, match.volume);
-    if (byKey.has(key)) continue; // first occurrence wins
-    anchorsToGetChpContainer.push(a);
-    byKey.set(key, {
-      number: match.number,
-      label: formatChapterLabel(match.number, match.volume, match.unit),
-      url: resolveUrl(href, url),
-      read: false
-    });
-  }
-
-  return { anchors: anchorsToGetChpContainer, chapters: Array.from(byKey.values()) };
-}
-
-// Fallback strategy: chapter number isn't in the URL at all (opaque
-// IDs), so read it from the anchor's visible text instead. Requires
-// the text to START with "Chapter" to avoid picking up unrelated
-// links elsewhere on the page.
-function extractFromText(doc: Document, url: string): ChapterScraperItem {
-  const pattern = /^(?:vol\.?\s*(\d+)\s*)?(?:(chapter|ch\.?)|(episode|ep\.?))\s*(\d+(?:\.\d+)?)/i;
-  const byKey = new Map<string, ScrapedChapter>();
-  const anchorsToGetChpContainer = [];
-
-  for (const a of doc.querySelectorAll("a[href]")) {
-    const text = a.textContent?.replace(/\s+/g, " ").trim() ?? "";
-    const match = text.match(pattern);
-    if (!match) continue;
-
-    const volume = match[1];
-    const isEpisode = match[3] !== undefined;
-    const number = parseFloat(match[4]);
-    if (number > MAX_PLAUSIBLE_CHAPTER) continue;
-    const key = chapterKey(number, volume);
-    if (byKey.has(key)) continue; // first occurrence wins
-    anchorsToGetChpContainer.push(a);
-    const href = a.getAttribute("href") ?? "";
-    byKey.set(key, {
-      number,
-      label: formatChapterLabel(number, volume, isEpisode ? "Ep." : "Ch."),
-      url: resolveUrl(href, url),
-      read: false
-    });
-  }
-  return { anchors: anchorsToGetChpContainer, chapters: Array.from(byKey.values()) };
-}
-
-// Runs BOTH strategies and merges by composite (volume, number) key, rather
-// than treating them as exclusive alternatives — a single site can mix URL
-// conventions across its history, and the visible link text is a reliable
-// safety net for whatever hrefs couldn't parse.
-export function extractChapters(doc: Document, url: string): ChapterScraperItem {
-  const hrefResult = extractFromHrefs(doc, url);
-  const textResult = extractFromText(doc, url);
-
-  const volOf = (c: ScrapedChapter) => c.label.match(/^Vol\.\s*(\d+(?:\.\d+)?)/i)?.[1];
-  const byKey = new Map<string, ScrapedChapter>();
+  const byKey = new Map<string, DraftChapter>();
   const anchors: Element[] = [];
+  const resolvedViaHref = new Set<Element>();
 
-  for (const ch of hrefResult.chapters) byKey.set(chapterKey(ch.number, volOf(ch)), ch);
-  for (const a of hrefResult.anchors) anchors.push(a);
+  // STRATEGY 1: Href-based extraction (Fastest & most reliable)
+  if (slug) {
+    for (const a of doc.querySelectorAll("a[href]")) {
+      const href = a.getAttribute("href") ?? "";
+      if (!href.toLowerCase().includes(slug)) continue;
 
-  for (let i = 0; i < textResult.chapters.length; i++) {
-    const ch = textResult.chapters[i];
-    const key = chapterKey(ch.number, volOf(ch));
-    if (!byKey.has(key)) {
-      byKey.set(key, ch);
-      anchors.push(textResult.anchors[i]);
+      const match = extractChapterFromSegments(href);
+      if (match === null || match.number > MAX_PLAUSIBLE_CHAPTER) continue;
+
+      resolvedViaHref.add(a);
+      const label = formatChapterLabel(match.number, match.volume, match.unit);
+      const draft: DraftChapter = { label, url: resolveUrl(href, url) };
+      const key = chapterDedupeKey(draft.label, draft.url);
+
+      if (byKey.has(key)) continue;
+
+      anchors.push(a);
+      byKey.set(key, draft);
     }
   }
 
-  return { anchors, chapters: sortChapters(Array.from(byKey.values())) };
+  // STRATEGY 2: Opaque URL Fallback (Text-based extraction)
+  // When we have a usable slug, still require the href to reference this
+  // series before trusting a text match. Without this, "Latest Releases" /
+  // "Recommended" widgets elsewhere on the page — which also render
+  // "Chapter N" text for completely unrelated series — get scraped as if
+  // they belonged to the current one. Only skip this check when there's no
+  // slug at all (opaque numeric/hash IDs, e.g. FlameComics), since then we
+  // have no way to verify the href belongs to this series anyway.
+  for (const a of doc.querySelectorAll("a[href]")) {
+    if (resolvedViaHref.has(a)) continue;
+
+    const href = a.getAttribute("href") ?? "";
+    if (slug && !href.toLowerCase().includes(slug)) continue;
+
+    const text = getSpacedText(a).replace(/\s+/g, " ").trim();
+    const match = text.match(TEXT_PATTERN);
+    if (!match) continue;
+
+    const volume = match[1];
+    const unit: ChapterUnit = match[3] !== undefined ? "Ep." : "Ch.";
+    const rawNumber = parseFloat(match[4]);
+
+    if (rawNumber > MAX_PLAUSIBLE_CHAPTER) continue;
+
+    const label = formatChapterLabel(rawNumber, volume, unit);
+    const draft: DraftChapter = { label, url: resolveUrl(href, url) };
+    const key = chapterDedupeKey(draft.label, draft.url);
+
+    if (byKey.has(key)) continue;
+
+    anchors.push(a);
+    byKey.set(key, draft);
+  }
+
+  return { anchors, drafts: Array.from(byKey.values()) };
+}
+
+// Helper to extract a mathematical weight from the label for sorting
+// (e.g., "Vol. 2 Ch. 15" -> 200015, "Ch. 132" -> 132)
+function getChapterWeight(label: string): number {
+  const match = label.match(/(?:Vol\.?\s*(\d+)\s*)?(?:Ch\.|Ep\.)\s*(\d+(?:\.\d+)?)/i);
+  if (!match) return 0;
+
+  const volume = parseFloat(match[1] || "0");
+  const chapter = parseFloat(match[2] || "0");
+
+  // Multiplying the volume by a massive number ensures that Vol. 2 Ch. 1
+  // always gets sorted AFTER Vol. 1 Ch. 100.
+  return volume * 100000 + chapter;
+}
+
+// Sorts the chapters chronologically based on their label before assigning
+// the final 1..N structural index.
+export function finalizeChapters(drafts: DraftChapter[]): ScrapedChapter[] {
+  const sortedDrafts = [...drafts].sort((a, b) => {
+    return getChapterWeight(a.label) - getChapterWeight(b.label);
+  });
+
+  return sortedDrafts.map((d, i) => ({
+    number: i + 1, // So that 1/N is not 0 if i == 0
+    label: d.label,
+    url: d.url,
+    read: false
+  }));
+}
+export function extractChapters(doc: Document, url: string): ChapterScraperItem {
+  const { anchors, drafts } = extractChaptersUnsorted(doc, url);
+  return { anchors, chapters: finalizeChapters(drafts) };
 }
