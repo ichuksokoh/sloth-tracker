@@ -34,7 +34,7 @@
   // Scroll the active chapter into view whenever the panel opens
   $effect(() => {
     if (open && panelEl) {
-      const activeEl = panelEl.querySelector(".chapter-row.is-active") as HTMLElement | null;
+      const activeEl = panelEl.querySelector(".sort-row.is-active") as HTMLElement | null;
       if (activeEl) {
         const panelRect = panelEl.getBoundingClientRect();
         const activeRect = activeEl.getBoundingClientRect();
@@ -59,7 +59,7 @@
     <div bind:this={panelEl} class="panel">
       {#each optionsUsed as option, index (index)}
         <button
-          class="chapter-row"
+          class="sort-row"
           class:is-active={optionsUsed[index] === currentSelection}
           onclick={() => select(index)}
         >
@@ -83,7 +83,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px 8px 12px;
-    min-width: 150px;
+    min-width: 165px;
     background: #1e293b;
     border: 1px solid #334155;
     border-radius: 9999px;
@@ -163,7 +163,7 @@
     border-radius: 999px;
   }
 
-  .chapter-row {
+  .sort-row {
     display: flex;
     align-items: center;
     width: 100%;
@@ -180,7 +180,7 @@
     gap: 8px;
   }
 
-  .chapter-row span {
+  .sort-row span {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -188,11 +188,11 @@
     white-space: nowrap;
   }
 
-  .chapter-row:hover {
+  .sort-row:hover {
     background: rgba(99, 102, 241, 0.15);
   }
 
-  .chapter-row.is-active {
+  .sort-row.is-active {
     background: rgba(99, 102, 241, 0.25);
     color: #c7d2fe;
     font-weight: 600;

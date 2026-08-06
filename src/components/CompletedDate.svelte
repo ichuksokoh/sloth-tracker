@@ -79,7 +79,7 @@
   title="Edit Completed Date"
   secondaryLabel="Save"
   onClick={handleSave}
-  tagPicked={touchedDate}
+  showSecondary={touchedDate}
 >
   <div class="date-editor">
     <input

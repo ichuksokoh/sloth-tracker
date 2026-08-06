@@ -40,7 +40,7 @@
   closeLabel="Cancel"
   secondaryLabel="Save"
   onClick={handleSave}
-  tagPicked={!!editedNotes}
+  showSecondary={!!editedNotes}
 >
   <div>
     <textarea bind:value={editedNotes} placeholder={"Enter your notes here..."} class="notes-input"> </textarea>

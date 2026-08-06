@@ -9,8 +9,8 @@
     children: Snippet;
     closeLabel?: string;
     secondaryLabel?: string;
-    onClick?: (() => void) | (() => Promise<void>);
-    tagPicked?: boolean;
+    onClick?: (() => void) | (() => Promise<void>); // Function to be called when the secondary button is clicked
+    showSecondary?: boolean;
   }
 
   let {
@@ -20,7 +20,7 @@
     closeLabel = "Close",
     onClick,
     secondaryLabel = "Clear",
-    tagPicked = false
+    showSecondary = false
   }: InfoBoxProps = $props();
 
   function close() {
@@ -85,8 +85,8 @@
       </div>
 
       <!-- Bottom Close Button (HideButton Aesthetic) -->
-      <div class="actions" class:not-showing-secondary={!(onClick && secondaryLabel && tagPicked)}>
-        {#if onClick && secondaryLabel && tagPicked}
+      <div class="actions" class:not-showing-secondary={!(onClick && secondaryLabel && showSecondary)}>
+        {#if onClick && secondaryLabel && showSecondary}
           <button class="secondary-btn" onclick={onClick}>
             {secondaryLabel}
           </button>

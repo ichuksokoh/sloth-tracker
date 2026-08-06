@@ -126,6 +126,8 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
     coverUrl: scraped.coverUrl ?? undefined,
     description: scraped.description ?? undefined,
     status: "Plan To Read",
+    favorite: false,
+    hidden: false,
     currentChapter: scraped.chapters.length > 0 ? scraped.chapters[0].number : 0,
     totalChapters: scraped.totalChapters ?? undefined,
     chapters: scraped.chapters,
@@ -158,7 +160,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
     console.log("[background] fetched AniList tags for", manhwa.title, aniListMedia);
     if (aniListMedia?.genres) {
       manhwa.tags = aniListMedia.genres.map((genre) => {
-        return { tagName: genre, isCustom: false };
+        return { tagName: genre, isCustom: false, hidden: false };
       });
       manhwa.ogTags = structuredClone(manhwa.tags); // Store original tags for reference
     }
@@ -170,7 +172,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
             !excludedTags.includes(tag.name.toLowerCase().replace("-", " ")) && !tag.isAdult && !tag.isMediaSpoiler
         )
         .map((tag) => {
-          return { tagName: tag.name, isCustom: false };
+          return { tagName: tag.name, isCustom: false, hidden: false };
         });
       manhwa.tags = [...new Set([...manhwa.tags, ...filteredTags])];
       manhwa.tags.sort((a, b) => a.tagName.localeCompare(b.tagName));
@@ -188,7 +190,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
       console.log("[background] fetched Kitsu tags for", manhwa.title, kitsuMedia);
       if (kitsuMedia?.genres) {
         manhwa.tags = kitsuMedia.genres.map((genre) => {
-          return { tagName: genre, isCustom: false };
+          return { tagName: genre, isCustom: false, hidden: false };
         });
         manhwa.ogTags = structuredClone(manhwa.tags); // Store original tags for reference
       }
@@ -221,7 +223,7 @@ export function addManhwa(manhwa: ScrapedManhwa) {
     }
 
     list.push(finalLiveManhwa);
-    tagManager.updateAllTags(allTags, list[list.length - 1].tags);
+    tagManager.updateAllTags(allTags, finalLiveManhwa.tags);
     await writeAllTags(allTags);
     await writeManhwaList(list);
 
@@ -232,39 +234,48 @@ export function addManhwa(manhwa: ScrapedManhwa) {
 export function updateManhwa(id: string, patch: Partial<Manhwa>, customUpdate: boolean = false) {
   return withLock(async () => {
     const list = await readManhwaList();
-    const next = list.map((m) => (m.id === id ? { ...m, ...patch, updatedAt: Date.now() } : m));
-    if (patch.tags || patch.hidden !== undefined) {
+    const oldManhwa = list.find((m) => m.id === id);
+    if (!oldManhwa) return;
+
+    const patchedManhwa: Manhwa = { ...oldManhwa, ...patch, updatedAt: Date.now() };
+    const oldHidden = oldManhwa.hidden;
+    const newHidden = patchedManhwa.hidden;
+    const hiddenChanged = oldHidden !== newHidden;
+
+    if (hiddenChanged || patch.tags) {
       const allTags = await readAllTags();
-      const hiddenTags = await readHiddenTags();
+      const oldTags = oldManhwa.tags ?? [];
+      const newTags = patchedManhwa.tags ?? [];
 
-      const updatedManhwa = next.find((m) => m.id === id);
-      const oldManhwa = list.find((m) => m.id === id);
+      const tagsAdded = newTags.filter((t) => !oldTags.some((o) => o.tagName === t.tagName));
+      const tagsRemoved = oldTags.filter((t) => !newTags.some((n) => n.tagName === t.tagName));
+      const tagsKept = newTags.filter((t) => oldTags.some((o) => o.tagName === t.tagName));
 
-      if (patch.tags) { // Only update if there is a change to tags
-        const oldTags = oldManhwa?.tags ?? [];
-        const newTags = updatedManhwa?.tags ?? [];
-        const tagsToAdd = newTags.filter((tag) => !oldTags.some((oldTag) => oldTag.tagName === tag.tagName));
-        const tagsToRemove = oldTags.filter((tag) => !newTags.some((newTag) => newTag.tagName === tag.tagName));
-        tagManager.updateAllTags(allTags, tagsToAdd, 1, customUpdate);
-        tagManager.updateAllTags(allTags, tagsToRemove, -1, customUpdate);
-        tagManager.updateAllTags(hiddenTags, tagsToAdd, 1, customUpdate);
-        tagManager.updateAllTags(hiddenTags, tagsToRemove, -1, customUpdate);
+      // Tags leaving the manga: account for them at whatever hidden state they exited at
+      if (tagsRemoved.length) {
+        const normalizedRemoved = tagsRemoved.map((t) => ({ ...t, hidden: oldHidden }));
+        tagManager.updateAllTags(allTags, normalizedRemoved, -1, customUpdate);
       }
 
-      // Only update if there is a change to hidden status
-      if (updatedManhwa?.hidden && oldManhwa && !oldManhwa.hidden) {
-        // Remove tags from allTags if manhwa is hidden
-        tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], -1, customUpdate);
-        tagManager.updateAllTags(hiddenTags, updatedManhwa?.tags ?? [], 1, customUpdate);
-      } else if (!updatedManhwa?.hidden && oldManhwa && oldManhwa.hidden) {
-        // Add tags back to allTags if manhwa is unhidden
-        tagManager.updateAllTags(allTags, updatedManhwa?.tags ?? [], 1, customUpdate);
-        tagManager.updateAllTags(hiddenTags, updatedManhwa?.tags ?? [], -1, customUpdate);
+      // Tags joining the manga: account for them at the manga's final hidden state
+      if (tagsAdded.length) {
+        const normalizedAdded = tagsAdded.map((t) => ({ ...t, hidden: newHidden }));
+        tagManager.updateAllTags(allTags, normalizedAdded, 1, customUpdate);
+      }
+
+      // Tags that persist: only move them between count/hiddenCount if hidden actually flipped
+      if (hiddenChanged && tagsKept.length) {
+        const normalizedKept = tagsKept.map((t) => ({ ...t, hidden: newHidden }));
+        tagManager.updateAllTags(allTags, normalizedKept, 0, customUpdate);
       }
 
       await writeAllTags(allTags);
-      await writeHiddenTags(hiddenTags);
+
+      // Normalize the stored tag list so every tag's `hidden` matches the manga's hidden state
+      patchedManhwa.tags = newTags.map((t) => ({ ...t, hidden: newHidden }));
     }
+
+    const next = list.map((m) => (m.id === id ? patchedManhwa : m));
     await writeManhwaList(next);
   });
 }

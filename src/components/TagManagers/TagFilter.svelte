@@ -14,34 +14,30 @@
 
   let open = $state(false);
   async function handleTagClick(tag: string) {
-    if (showHidden) {
-      await tagManager.setHiddenTagActive(tag, !manhwaStore.hiddenTags[tag].active);
-    } else {
-      await tagManager.setTagActive(tag, !manhwaStore.allTags[tag].active);
-    }
+    await tagManager.setTagActive(tag, !manhwaStore.allTags[tag].active);
   }
 
   async function handleClearTags() {
-    if (showHidden) {
-      await tagManager.clearAllHiddenActiveTags();
-    } else {
-      await tagManager.clearAllActiveTags();
-    }
+    await tagManager.clearAllActiveTags();
   }
 
-  function correctTagsToDisplay(tags: Record<string, TagTracker>) {
+  function correctTagsToDisplay(tags: Record<string, TagTracker>, showHidden: boolean = false) {
     const correctedTags: Record<string, TagTracker> = {};
     for (const [tagName, tracker] of Object.entries(tags)) {
-      if (tracker.count > 0) {
-        correctedTags[tagName] = tracker;
+      if (showHidden) {
+        if (tracker.hiddenCount > 0) {
+          correctedTags[tagName] = tracker;
+        }
+      } else {
+        if (tracker.count > 0) {
+          correctedTags[tagName] = tracker;
+        }
       }
     }
     return correctedTags;
   }
 
-  let tagsToDisplay = $derived(
-    showHidden ? correctTagsToDisplay(manhwaStore.hiddenTags) : correctTagsToDisplay(manhwaStore.allTags)
-  );
+  let tagsToDisplay = $derived(correctTagsToDisplay(manhwaStore.allTags, showHidden));
   let selected = $derived(
     Object.fromEntries(Object.entries(tagsToDisplay).filter(([_, tracker]) => tracker.active))
   );
@@ -54,11 +50,15 @@
   title="Filter by Tag"
   secondaryLabel="Clear Filter"
   onClick={handleClearTags}
-  tagPicked={selectedCount > 0}
+  showSecondary={selectedCount > 0}
 >
   <div class="all-tags">
     {#each Object.entries(tagsToDisplay) as [tag, tracker] (tag)}
-      <Tag text={`${tag} (${tracker.count})`} onClick={() => handleTagClick(tag)} filtered={tracker.active} />
+      <Tag
+        text={`${tag} (${showHidden ? tracker.hiddenCount : tracker.count})`}
+        onClick={() => handleTagClick(tag)}
+        filtered={tracker.active}
+      />
     {/each}
   </div>
 </InfoBox>

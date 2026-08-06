@@ -8,7 +8,7 @@
   import Card from "@/components/Card.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
   import FavoriteButton from "@/components/Buttons/FavoriteButton.svelte";
-  import HideButton from "@/components/HideButton.svelte";
+  import HideButton from "@/components/Buttons/HideButton.svelte";
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import SortByDropdown from "@/components/Dropdowns/SortByDropdown.svelte";
   import SortByDirBtn from "@/components/Buttons/SortByDirBtn.svelte";
@@ -19,7 +19,14 @@
   let isSearching = $state(false); // true during the "waiting to settle" window
   let status = $state("All"); // 'All', 'Reading', 'Plan To Read', 'Completed', 'Dropped'
   const statusValues = ["All", "Plan To Read", "Reading", "Completed", "Dropped"] as const;
-  const sortByOptions = ["Title", "Recently Added", "Recently Updated", "Rating", "Progress", "Completed Date"];
+  const sortByOptions = [
+    "Title",
+    "Recently Added",
+    "Recently Updated",
+    "Rating",
+    "Progress",
+    "Recently Completed"
+  ];
 
   const fieldComparators: Record<SortField, (a: Manhwa, b: Manhwa) => number> = {
     Title: (a, b) => a.title.localeCompare(b.title),
@@ -31,7 +38,7 @@
       const bP = b.totalChapters ? b.currentChapter / b.totalChapters : 0;
       return aP - bP;
     },
-    "Completed Date": (a, b) => {
+    "Recently Completed": (a, b) => {
       const aDate = a.completedOn ?? 0;
       const bDate = b.completedOn ?? 0;
       return aDate - bDate;
@@ -80,9 +87,8 @@
   };
 
   let filtered = $derived(
-    manhwaStore.list.filter((m) => compare(m))
-    .sort((a, b) => manhwasSortBy(a, b, sortByField, sortByDirection))
-  )
+    manhwaStore.list.filter((m) => compare(m)).sort((a, b) => manhwasSortBy(a, b, sortByField, sortByDirection))
+  );
 
   function handleStatusSelect(label: string) {
     status = label;
@@ -103,8 +109,6 @@
     hideManwhaCount = !hideManwhaCount;
     fields.toggleManhwaCount.set(hideManwhaCount);
   }
-
-
 
   function handleSortByFieldOption(option: SortField) {
     sortByField = option;
@@ -169,11 +173,9 @@
   let queryNotEmpty = $derived(debouncedQuery.trim().length > 0);
   async function clearSearch() {
     fields.searchQuery.set("");
-    if (showHiddenOnly) {
-      await tagManager.clearAllHiddenActiveTags();
-    } else {
-      await tagManager.clearAllActiveTags();
-    }
+
+    await tagManager.clearAllActiveTags();
+
     if (showFavoritesOnly) {
       showFavoritesOnly = false;
       fields.showFavoritesOnly.set(false);
@@ -655,9 +657,9 @@
     color: #94a3b8;
     cursor: pointer;
     transition:
-      border-color 150ms ease,
-      color 150ms ease,
-      background-color 150ms ease;
+      border-color 250ms ease,
+      color 250ms ease,
+      background-color 250ms ease;
   }
 
   .select-mode-toggle svg {

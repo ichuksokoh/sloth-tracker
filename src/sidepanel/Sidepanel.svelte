@@ -6,7 +6,7 @@
   import type { Manhwa } from "@/types";
   import Button from "@/components/Buttons/Button.svelte";
   import FavoriteButton from "@/components/Buttons/FavoriteButton.svelte";
-  import HideButton from "@/components/HideButton.svelte";
+  import HideButton from "@/components/Buttons/HideButton.svelte";
   import ProgressBar from "@/components/ProgressBar.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
   import ChapterDropdown from "@/components/Dropdowns/ChapterDropdown.svelte";
@@ -281,8 +281,8 @@
       <div class="controls-row">
         <GoToBtn label="Read at" onClick={openManhwaUrl} icon={linkToSvg} />
         <ChapterDropdown manhwa={selectedManhwa} onSelect={handleChapterSelect} />
-        <FavoriteButton favorite={selectedManhwa.favorite ?? false} onToggle={toggleFavorite} />
-        <HideButton hidden={selectedManhwa.hidden ?? false} onToggle={toggleHidden} />
+        <FavoriteButton favorite={selectedManhwa.favorite } onToggle={toggleFavorite} />
+        <HideButton hidden={selectedManhwa.hidden } onToggle={toggleHidden} />
       </div>
       <div class="genre-tags">
         {#each shownTags as tag, i (i)}

@@ -78,14 +78,4 @@ export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.M
     await manhwaDB.clearAllActiveTags();
     return { ok: true };
   },
-
-  "hiddentag:setActive": async (msg) => {
-    await manhwaDB.setHiddenTagActive(msg.tag, msg.active);
-    return { ok: true };
-  },
-
-  "hiddentag:clearActive": async () => {
-    await manhwaDB.clearAllHiddenActiveTags();
-    return { ok: true };
-  },  
 };

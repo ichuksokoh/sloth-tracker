@@ -38,7 +38,7 @@ export interface ScrapedManhwa {
 
 // Types for the main library data structure
 export type ReadStatus = "Reading" | "Plan To Read" | "Completed" | "Dropped";
-export type Tags = { tagName: string, isCustom: boolean }
+export type Tags = { tagName: string, isCustom: boolean, hidden: boolean }
 
 export interface Manhwa {
   id: string; // crypto.randomUUID() at creation time
@@ -48,8 +48,8 @@ export interface Manhwa {
   sourceUrl: string; // link back to where you read it
   coverUrl?: string; // optional — you may not always capture one
   status: ReadStatus;
-  favorite?: boolean; // optional — if you want to mark it as a favorite
-  hidden?: boolean; // optional — if you want to hide it from the library view
+  favorite: boolean; // optional — if you want to mark it as a favorite
+  hidden: boolean; // optional — if you want to hide it from the library view
   currentChapter: number;
   totalChapters?: number; // optional — often unknown/ongoing
   chapters: ScrapedChapter[];
@@ -63,14 +63,17 @@ export interface Manhwa {
 }
 
 // Sorting Field and Direction Types
-export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress" | "Completed Date";
+export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress" | "Recently Completed";
 export type SortDirection = "asc" | "desc";
 
 // Tag Tracker type
 export interface TagTracker {
-  count: number;
-  active: boolean;
-  custom?: boolean; // optional — if true, this tag was added by the user and not scraped from a source
+  // if hiddenCount > 0, this tag is hidden
+  // if count > 0, this tag is not hidden
+  count: number; // For UI tracking and removal of custom tags
+  hiddenCount: number; // For UI tracking hidden tags and removal of custom tags
+  active: boolean; // FOr UI filtering
+  custom: boolean; //  if true, this tag was added by the user and not scraped from a source
   ogCount: number; // tracks count aside from what user sees
 }
 
