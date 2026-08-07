@@ -8,6 +8,9 @@
   import type { Manhwa } from "@/types";
   import { fade } from "svelte/transition";
   import { tick } from "svelte";
+  import Searchbar from "../SearchBar.svelte";
+  import { stringSimilarity } from "@/lib/titleMatch";
+  import SearchBar from "../SearchBar.svelte";
 
   interface EditTagsProps {
     manhwa: Manhwa;
@@ -15,13 +18,46 @@
 
   let { manhwa }: EditTagsProps = $props();
 
-  const defaultTags = $derived(
-    Object.keys(manhwaStore.allTags).filter((tagName) => !manhwaStore.allTags[tagName].custom)
-  );
+  let searchQuery = $state("");
 
-  const customTags = $derived(
-    Object.keys(manhwaStore.allTags).filter((tagName) => manhwaStore.allTags[tagName].custom)
-  );
+  function clearSearch() {
+    searchQuery = "";
+  }
+
+  function generateTagView(isDefault: boolean = true) {
+    const value = searchQuery.trim();
+    if (isDefault) {
+      if (value === "") {
+        return Object.keys(manhwaStore.allTags).filter((tagName) => !manhwaStore.allTags[tagName].custom);
+      } else {
+        return Object.keys(manhwaStore.allTags).filter(
+          (tagName) =>
+            !manhwaStore.allTags[tagName].custom &&
+              (stringSimilarity(tagName.toLowerCase(), value.toLowerCase()) > 0.5 ||
+            tagName.toLowerCase().includes(value.toLowerCase()))
+        );
+      }
+    } else {
+      if (value === "") {
+        return Object.keys(manhwaStore.allTags).filter((tagName) => manhwaStore.allTags[tagName].custom);
+      } else {
+        return Object.keys(manhwaStore.allTags).filter(
+          (tagName) =>
+            manhwaStore.allTags[tagName].custom &&
+              (stringSimilarity(tagName.toLowerCase(), value.toLowerCase()) > 0.5 ||
+            tagName.toLowerCase().includes(value.toLowerCase()))
+        );
+      }
+    }
+  }
+
+  const defaultTags = $derived.by(() => {
+    return generateTagView(true);
+  });
+
+  const customTags = $derived.by(() => {
+    return generateTagView(false);
+  });
 
   let customTagsToAdd = $state<Tags[]>([]);
   let defaultTagsToAdd = $state<Tags[]>([]);
@@ -224,6 +260,7 @@
   onClick={handleSave}
   showSecondary={customTagsToAdd.length + defaultTagsToAdd.length + tagsToBeRemoved.length > 0}
 >
+  <SearchBar bind:searchQuery onSearch={() => {}} onClear={clearSearch} placeholder="Search tags..." />
   <div class="all-tags">
     <h3>Default Tags</h3>
     <div class="default-tags">
@@ -319,7 +356,7 @@
     flex-wrap: wrap;
     gap: 5px;
     justify-content: center;
-    align-items: center;
+    align-content: start;
     max-height: 280px;
     min-height: 150px;
     overflow-y: auto;
@@ -357,6 +394,7 @@
     flex-direction: column;
     gap: 5px;
     /* justify-content: center; */
+    align-content: start;
     align-items: center;
     max-height: 280px;
     min-height: 150px;

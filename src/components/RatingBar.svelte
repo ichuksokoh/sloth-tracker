@@ -1,30 +1,51 @@
 <script lang="ts">
-  let {
-    rating = $bindable(undefined),
-    onSelect,
-  }: { rating?: number; onSelect?: (value: number) => void } = $props();
+  import { cubicOut } from "svelte/easing";
+  import { fade } from "svelte/transition";
+
+  interface RatingBarProps {
+    rating?: number | null;
+    onSelect?: (value: number) => void;
+    onClear?: () => void;
+  }
+  let { rating = $bindable(undefined), onSelect, onClear }: RatingBarProps = $props();
 
   const MIN = 0;
   const MAX = 10;
   const STEP = 0.25;
+  const CLEAR_ANIM_MS = 550; // matches the width/left transition duration below
 
   let trackEl = $state<HTMLElement | null>(null);
   let dragging = $state(false);
   let inputValue = $state("");
 
-  let hasSelection = $derived(rating !== undefined);
-  let percent = $derived(
-    hasSelection ? ((rating! - MIN) / (MAX - MIN)) * 100 : 0,
-  );
+  let hasSelection = $derived(rating !== undefined && rating !== null);
+  let percent = $derived(hasSelection ? ((rating! - MIN) / (MAX - MIN)) * 100 : 0);
+
+  // Visual state, decoupled from `rating` so the clear button can animate
+  // the fill/thumb to 0 before they actually unmount.
+  let displayPercent = $state(0);
+  let showTrack = $state(false);
+  let clearing = $state(false);
+
+  $effect(() => {
+    // Only re-sync while there IS a selection. This intentionally does NOT
+    // react to hasSelection turning false, so handleClear's manual
+    // sequencing (animate, then unmount) isn't immediately overwritten.
+    if (hasSelection) {
+      displayPercent = percent;
+      showTrack = true;
+    } else if (!clearing) {
+      displayPercent = 0;
+      showTrack = false;
+    }
+  });
 
   $effect(() => {
     inputValue = hasSelection ? String(rating) : "";
   });
 
   function clampAndStep(value: number, fromInput = false): number {
-    const stepped = fromInput
-      ? Math.round(value * 100) / 100
-      : Math.round(value / STEP) * STEP;
+    const stepped = fromInput ? Math.round(value * 100) / 100 : Math.round(value / STEP) * STEP;
     return Math.min(MAX, Math.max(MIN, Math.round(stepped * 100) / 100));
   }
 
@@ -68,6 +89,18 @@
     dragging = false;
     onSelect?.(rating!); // commit the final value exactly once, now that dragging has stopped
   }
+
+  function handleClear() {
+    clearing = true;
+    // Kick off the visual animation immediately...
+    displayPercent = 0;
+    // ...then unmount and notify the parent once the transition has finished.
+    setTimeout(() => {
+      showTrack = false;
+      onClear?.();
+      clearing = false;
+    }, CLEAR_ANIM_MS);
+  }
 </script>
 
 <div class="rating-wrap">
@@ -84,6 +117,19 @@
         value={inputValue}
         onchange={handleInputChange}
       />
+      {#if hasSelection}
+        <button
+          transition:fade={{ duration: 300, delay: 0, easing: cubicOut }}
+          class="clear-btn"
+          onclick={handleClear}
+          aria-label="Clear"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      {/if}
     </span>
     <span class="rating-value" class:is-empty={!hasSelection}>
       {hasSelection ? rating!.toFixed(2) : "—"}
@@ -101,12 +147,17 @@
     aria-label="Rating"
   >
     <div class="rating-track-inner" class:is-dragging={dragging}>
-      {#if hasSelection}
-        <div class="rating-fill" style="width: {percent}%"></div>
+      {#if showTrack}
         <div
+          transition:fade={{ duration: 350, delay: 0, easing: cubicOut }}
+          class="rating-fill"
+          style="width: {displayPercent}%"
+        ></div>
+        <div
+          transition:fade={{ duration: 350, delay: 0, easing: cubicOut }}
           class="rating-thumb"
           class:is-dragging={dragging}
-          style="left: {percent}%"
+          style="left: {displayPercent}%"
         ></div>
       {/if}
     </div>
@@ -159,6 +210,47 @@
     margin: 0;
   }
 
+  .clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 9999px;
+    color: rgba(226, 232, 240, 0.6);
+    cursor: pointer;
+    opacity: 0%;
+    transition:
+      background-color 150ms ease,
+      transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 350ms ease,
+      color 150ms ease;
+  }
+
+  .clear-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* Reveal on hovering the label row, not just the button itself */
+  .rating-label:hover .clear-btn {
+    opacity: 100%;
+  }
+
+  .clear-btn:hover {
+    transform: rotate(360deg);
+    background: rgba(127, 29, 29, 0.55);
+    color: #fca5a5;
+  }
+
+  .clear-btn:active {
+    transform: scale(0.9);
+  }
+
   .rating-value {
     font-size: 11px;
     font-weight: 600;
@@ -190,7 +282,7 @@
     background: linear-gradient(90deg, #6366f1, #818cf8);
     border-radius: 999px;
     box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
-    transition: width 120ms ease;
+    transition: width 500ms ease;
   }
 
   .rating-track.is-dragging .rating-fill {
@@ -208,12 +300,12 @@
     transform: translate(-50%, -50%);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
     transition:
-      left 120ms ease,
-      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      left 500ms ease,
+      transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .rating-thumb.is-dragging {
-    transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
     transform: translate(-50%, -50%) scale(1.25);
   }
 </style>

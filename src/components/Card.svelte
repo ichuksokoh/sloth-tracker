@@ -22,7 +22,7 @@
     maxHeight = "100%",
     selectMode = false,
     selected = false,
-    onToggleSelect,
+    onToggleSelect
   }: CardProps = $props();
 
   const cover = retrieveCover(() => manhwa);
@@ -41,7 +41,7 @@
     return {
       destroy() {
         resizeObserver.disconnect();
-      },
+      }
     };
   }
 
@@ -57,7 +57,7 @@
     Reading: "#4338ca",
     "Plan To Read": "#334155",
     Completed: "#0f766e",
-    Dropped: "#7f1d1d",
+    Dropped: "#7f1d1d"
   };
 
   let badgeBg = $derived(statusColors[manhwa.status] ?? "#334155");
@@ -102,8 +102,7 @@
   confirmColorTo="#450a0a"
   onConfirm={() => deleteManhwa(manhwa.id ?? "")}
 >
-  This will remove <strong>{manhwa.title}</strong> and its cached cover from your
-  library. This can't be undone.
+  This will remove <strong>{manhwa.title}</strong> from your library. This can't be undone.
 </AlertBox>
 <div
   class="card"
@@ -150,9 +149,7 @@
           class:is-active={manhwa.favorite}
           onclick={handleToggleFavorite}
           aria-pressed={manhwa.favorite}
-          aria-label={manhwa.favorite
-            ? "Remove from favorites"
-            : "Add to favorites"}
+          aria-label={manhwa.favorite ? "Remove from favorites" : "Add to favorites"}
         >
           <svg
             viewBox="0 0 24 24"
@@ -165,23 +162,9 @@
             />
           </svg>
         </button>
-        <span
-          class="status-badge"
-          style="background: {badgeBg}ea; color: {badgeText};"
-          >{manhwa.status}</span
-        >
-        <button
-          class="delete-btn"
-          onclick={handleDelete}
-          aria-label="Delete manhwa"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
+        <span class="status-badge" style="background: {badgeBg}ea; color: {badgeText};">{manhwa.status}</span>
+        <button class="delete-btn" onclick={handleDelete} aria-label="Delete manhwa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -317,7 +300,7 @@
   .favorite-toggle:hover {
     color: #fcd34d;
   }
-  
+
   .delete-btn:hover {
     background: rgba(122, 15, 15, 0.497);
     border-color: rgba(248, 113, 113, 0.4);
@@ -330,13 +313,7 @@
     width: 100%;
     overflow: hidden;
     white-space: nowrap;
-    mask-image: linear-gradient(
-      to right,
-      transparent,
-      black 3%,
-      black 95%,
-      transparent
-    );
+    mask-image: linear-gradient(to right, transparent, black 3%, black 95%, transparent);
   }
 
   .marquee-content {

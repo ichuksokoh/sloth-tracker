@@ -38,7 +38,7 @@ export interface ScrapedManhwa {
 
 // Types for the main library data structure
 export type ReadStatus = "Reading" | "Plan To Read" | "Completed" | "Dropped";
-export type Tags = { tagName: string, isCustom: boolean, hidden: boolean }
+export type Tags = { tagName: string; isCustom: boolean; hidden: boolean };
 
 export interface Manhwa {
   id: string; // crypto.randomUUID() at creation time
@@ -55,15 +55,22 @@ export interface Manhwa {
   chapters: ScrapedChapter[];
   tags: Tags[];
   ogTags: Tags[]; // original tags from the source, for reference
-  rating?: number; // optional — 1-10 allows decimal ratings like 7.5
+  rating?: number | null; // optional — 1-10 allows decimal ratings like 7.5
   notes?: string;
   createdAt: number; // Date.now()
   updatedAt: number;
-  completedOn?: number | null; // optional — when you marked it as completed, can also be null if you want to clear it
+  completedOn?: number | null; // optional —  can also be null if you want to clear it
+  startedOn?: number | null; // optional — can also be null if you want to clear it
 }
 
 // Sorting Field and Direction Types
-export type SortField = "Title" | "Recently Added" | "Recently Updated" | "Rating" | "Progress" | "Recently Completed";
+export type SortField =
+  | "Title"
+  | "Recently Added"
+  | "Recently Updated"
+  | "Rating"
+  | "Progress"
+  | "Recently Completed";
 export type SortDirection = "asc" | "desc";
 
 // Tag Tracker type

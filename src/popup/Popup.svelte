@@ -4,7 +4,7 @@
   import { setSelectedManhwaAll } from "@/lib/selectedManhwa.svelte";
   import * as fields from "@/lib/storageField";
   import * as tagManager from "@/lib/tagManager";
-  import { stringSimilarity } from "@/lib/titleMatch";
+  import { matchesSearch, compareSearchRank, bestSearchRank } from "@/lib/titleMatch";
   import Card from "@/components/Card.svelte";
   import StatusBar from "@/components/StatusBar.svelte";
   import FavoriteButton from "@/components/Buttons/FavoriteButton.svelte";
@@ -13,6 +13,7 @@
   import SortByDropdown from "@/components/Dropdowns/SortByDropdown.svelte";
   import SortByDirBtn from "@/components/Buttons/SortByDirBtn.svelte";
   import TagFilter from "@/components/TagManagers/TagFilter.svelte";
+  import SearchBar from "@/components/SearchBar.svelte";
 
   let searchQuery = $state("");
   let debouncedQuery = $state(""); // updates after typing pauses, drives the filter
@@ -60,36 +61,42 @@
   // Front-end Client side filtering of the manhwa list based on search query, status filter, and favorites filter
   let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function handleSearchInput(e: Event) {
-    const value = (e.currentTarget as HTMLInputElement).value;
-    searchQuery = value;
+  function handleSearchInput() {
+
     isSearching = true;
 
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-      debouncedQuery = value;
+      debouncedQuery = searchQuery;
       isSearching = false;
-      fields.searchQuery.set(value); // persist to session storage once settled
+      fields.searchQuery.set(searchQuery); // persist to session storage once settled
     }, 250);
   }
 
   const compare = (a: Manhwa) => {
     const allTags = manhwaStore.allTags;
-    const titleSim = stringSimilarity(a.title, debouncedQuery);
-    const titleIncludes = a.title.toLowerCase().includes(debouncedQuery.toLowerCase());
+    const titleMatches = matchesSearch(debouncedQuery, a.title);
     const statusMatches = status === "All" || a.status === status;
     const favoriteMatches = !showFavoritesOnly || a.favorite;
     const hiddenMatches = showHiddenOnly ? a.hidden : !a.hidden;
     // Show all is defualt for filtering purposes user does not actually see this
     const showAll = Object.values(allTags).every((tag) => !tag.active);
     const tagsMatches = a.tags.some((tag) => allTags[tag.tagName] && allTags[tag.tagName].active) || showAll;
-    return (titleSim >= 0.55 || titleIncludes) && statusMatches && favoriteMatches && hiddenMatches && tagsMatches;
+    return titleMatches && statusMatches && favoriteMatches && hiddenMatches && tagsMatches;
   };
 
-  let filtered = $derived(
-    manhwaStore.list.filter((m) => compare(m)).sort((a, b) => manhwasSortBy(a, b, sortByField, sortByDirection))
-  );
+  let filtered = $derived.by(() => {
+    const withRank = manhwaStore.list
+      .map((m) => ({ m, match: bestSearchRank(debouncedQuery, [m.title]) }))
+      .filter(
+        ({ m, match }) => (debouncedQuery.trim() ? match !== null : true) && compare(m)
+      );
 
+    if (debouncedQuery.trim()) {
+      return withRank.sort((a, b) => compareSearchRank(a.match!, b.match!)).map(({ m }) => m);
+    }
+    return withRank.map(({ m }) => m).sort((a, b) => manhwasSortBy(a, b, sortByField, sortByDirection));
+  });
   function handleStatusSelect(label: string) {
     status = label;
     fields.statusFilter.set(label);
@@ -169,9 +176,12 @@
   fields.sortByDirection.onChange((v) => {
     sortByDirection = v as SortDirection;
   });
-  //Clear Query button logic
-  let queryNotEmpty = $derived(debouncedQuery.trim().length > 0);
+
+
   async function clearSearch() {
+    searchQuery = "";
+    debouncedQuery = "";
+
     fields.searchQuery.set("");
 
     await tagManager.clearAllActiveTags();
@@ -236,21 +246,7 @@
 </script>
 
 <div class="popup">
-  <header class="search-bar">
-    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-    <input type="text" placeholder="Search your library…" oninput={handleSearchInput} value={searchQuery} />
-    {#if queryNotEmpty}
-      <button class="clear-btn" onclick={clearSearch} aria-label="Clear search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    {/if}
-  </header>
+  <SearchBar bind:searchQuery onSearch={handleSearchInput} onClear={clearSearch} placeholder="Search your library…" />
   <nav class="status-nav">
     <StatusBar labels={statusValues} selected={status} onSelect={handleStatusSelect} />
     <button
@@ -390,96 +386,6 @@
     border-radius: 8px;
   }
 
-  .search-bar {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 16px 10px;
-    padding: 10px 14px;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    transition:
-      border-color 150ms ease,
-      box-shadow 150ms ease;
-  }
-
-  .search-bar:focus-within {
-    border-color: #818cf8;
-    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.25);
-  }
-
-  .search-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: #64748b;
-  }
-
-  .search-bar input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: #e2e8f0;
-    font-size: 14px;
-    font-family: inherit;
-  }
-
-  .search-bar input::placeholder {
-    color: #64748b;
-  }
-
-  .clear-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    padding: 0;
-    background: rgba(148, 163, 184, 0.12);
-    border: none;
-    border-radius: 999px;
-    color: #64748b;
-    cursor: pointer;
-    transition:
-      background-color 150ms ease,
-      color 150ms ease,
-      transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
-    animation: pop-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-
-  .clear-btn svg {
-    width: 12px;
-    height: 12px;
-    transition: transform 200ms ease;
-  }
-
-  .clear-btn:hover {
-    background-color: rgba(248, 113, 113, 0.15);
-    color: #f87171;
-  }
-
-  .clear-btn:hover svg {
-    transform: rotate(90deg);
-  }
-
-  .clear-btn:active {
-    transform: scale(0.85);
-  }
-
-  @keyframes pop-in {
-    from {
-      opacity: 0;
-      transform: scale(0.5);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
   .searching-state {
     display: flex;
     align-items: center;

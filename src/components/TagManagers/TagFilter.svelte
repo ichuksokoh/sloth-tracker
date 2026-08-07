@@ -3,7 +3,9 @@
   import * as tagManager from "@/lib/tagManager";
   import InfoBox from "../PopupBoxes/InfoBox.svelte";
   import Tag from "./Tag.svelte";
+  import Searchbar from "../SearchBar.svelte";
   import type { TagTracker } from "@/types";
+  import { stringSimilarity } from "@/lib/titleMatch";
 
   interface TagFilterProps {
     size?: number;
@@ -12,6 +14,8 @@
 
   let { size = 34, showHidden = false }: TagFilterProps = $props();
 
+  let searchQuery = $state("");
+
   let open = $state(false);
   async function handleTagClick(tag: string) {
     await tagManager.setTagActive(tag, !manhwaStore.allTags[tag].active);
@@ -19,6 +23,10 @@
 
   async function handleClearTags() {
     await tagManager.clearAllActiveTags();
+  }
+
+  async function clearSearch() {
+    searchQuery = "";
   }
 
   function correctTagsToDisplay(tags: Record<string, TagTracker>, showHidden: boolean = false) {
@@ -37,7 +45,20 @@
     return correctedTags;
   }
 
-  let tagsToDisplay = $derived(correctTagsToDisplay(manhwaStore.allTags, showHidden));
+  let tagsToDisplay = $derived.by(() => {
+    const value = searchQuery.trim();
+    if (value === "") {
+      return correctTagsToDisplay(manhwaStore.allTags, showHidden);
+    } else {
+      const filteredTags: Record<string, TagTracker> = {};
+      for (const [tagName, tracker] of Object.entries(manhwaStore.allTags)) {
+        if (stringSimilarity(value, tagName) > 0.5 || tagName.toLowerCase().includes(value.toLowerCase())) {
+          filteredTags[tagName] = tracker;
+        }
+      }
+      return correctTagsToDisplay(filteredTags, showHidden);
+    }
+  });
   let selected = $derived(
     Object.fromEntries(Object.entries(tagsToDisplay).filter(([_, tracker]) => tracker.active))
   );
@@ -52,6 +73,7 @@
   onClick={handleClearTags}
   showSecondary={selectedCount > 0}
 >
+  <Searchbar bind:searchQuery onSearch={() => {}} onClear={clearSearch} placeholder="Search tags..." />
   <div class="all-tags">
     {#each Object.entries(tagsToDisplay) as [tag, tracker] (tag)}
       <Tag
@@ -129,9 +151,9 @@
     flex-wrap: wrap;
     gap: 5px;
     justify-content: center;
-    align-items: center;
+    align-content: start;
     overflow-y: auto;
-    max-height: 280px;
+    height: 300px;
   }
 
   .all-tags::-webkit-scrollbar {

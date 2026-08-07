@@ -1,15 +1,16 @@
 <script lang="ts">
   import InfoBox from "@/components/PopupBoxes/InfoBox.svelte";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
-  import type { Manhwa } from "@/types";
+  import type { Manhwa, ReadStatus } from "@/types";
   import { cubicOut } from "svelte/easing";
   import { fade } from "svelte/transition";
 
-  interface FinishedDateProps {
+  interface DatePickerProps {
     manhwa: Manhwa;
+    forStatus: ReadStatus; // status to determine which date to update
   }
 
-  let { manhwa }: FinishedDateProps = $props();
+  let { manhwa, forStatus }: DatePickerProps = $props();
 
   // Helper function to format a Date object as a local ISO date string (YYYY-MM-DD)
   // because UTC offset issues can cause the Date constructor
@@ -27,44 +28,60 @@
   }
 
   let dateEditorOpen = $state(false);
+  const dateMap = $derived<Partial<Record<ReadStatus, Date | null>>>({
+    Completed: manhwa.completedOn ? new Date(manhwa.completedOn) : null,
+    Reading: manhwa.startedOn ? new Date(manhwa.startedOn) : null
+  });
 
-  const finishedDate = $derived(manhwa.completedOn ? new Date(manhwa.completedOn) : null);
+  const errMap = $derived<Partial<Record<ReadStatus, string>>>({
+    Completed: "You can only set an end date for completed manga/manhwa.",
+    Reading: "You can only set a start date for manga/manhwa marked read."
+  });
+
+  const labelMap = $derived<Partial<Record<ReadStatus, string>>>({
+    Completed: "End Date",
+    Reading: "Start Date"
+  });
+
+  const statusDate = $derived(dateMap[forStatus] ? new Date(dateMap[forStatus]) : null);
 
   let inputDate = $state("");
   let errorMsg = $state("");
-  const touchedDate = $derived(finishedDate ? localISODate(finishedDate) !== inputDate : inputDate !== "");
-
+  const touchedDate = $derived(statusDate ? localISODate(statusDate) !== inputDate : inputDate !== "");
 
   async function openDateEditor() {
-    if (finishedDate) {
-      inputDate = localISODate(finishedDate);
+    if (statusDate) {
+      inputDate = localISODate(statusDate);
     } else {
       inputDate = "";
     }
     errorMsg = "";
     dateEditorOpen = true;
   }
+
   function handleSave() {
     const oneYearFromToday = new Date();
     oneYearFromToday.setFullYear(oneYearFromToday.getFullYear() + 1);
+    const validInput = inputDate === "" || inputDate;
     if (inputDate && parseLocalISODate(inputDate) > oneYearFromToday) {
-      errorMsg = "Finished date cannot be more than one year in the future.";
+      errorMsg = "Date cannot be more than one year in the future.";
       return;
     } else if (inputDate && parseLocalISODate(inputDate) < new Date(manhwa.createdAt)) {
-      errorMsg = "Finished date cannot be before the manhwa was added.";
+      errorMsg = "Date cannot be before the manhwa was added.";
       return;
-    } else if (inputDate && manhwa.status === "Completed") {
-      // Convert the input date string to a timestamp and update the manhwa's completedOn property
+    } else if (validInput && manhwa.status !== forStatus) {
+      errorMsg = errMap[forStatus] || "Unexpected error: please try again.";
+      return;
+    } else if (validInput && forStatus === "Completed") {
+      // Convert the input date string to a timestamp and update the matching date property
       // We do this because of UTC offset issues with the Date Consstructor compared to local time
-      manhwaStore.update(manhwa.id, { completedOn: parseLocalISODate(inputDate)?.getTime() });
-    } else if (inputDate === "" && manhwa.status === "Completed") {
-      // If the input date is empty and the manhwa is completed, clear the completedOn property
-      manhwaStore.update(manhwa.id, { completedOn: null });
-    } else if (inputDate && manhwa.status !== "Completed") {
-      errorMsg = "You can only set a finished date for completed manhwas.";
-      return;
+      const completedDate = parseLocalISODate(inputDate)?.getTime() || null;
+      manhwaStore.update(manhwa.id, { completedOn: completedDate });
+    } else if (validInput && forStatus === "Reading") {
+      const startedDate = parseLocalISODate(inputDate)?.getTime() || null;
+      manhwaStore.update(manhwa.id, { startedOn: startedDate });
+      dateEditorOpen = false;
     }
-    dateEditorOpen = false;
   }
 
   function handleInputSave(event: KeyboardEvent) {
@@ -76,7 +93,7 @@
 
 <InfoBox
   bind:open={dateEditorOpen}
-  title="Edit Completed Date"
+  title="Edit {labelMap[forStatus] || 'Date'}"
   secondaryLabel="Save"
   onClick={handleSave}
   showSecondary={touchedDate}
@@ -96,11 +113,11 @@
   </div>
 </InfoBox>
 <div>
-  <button class="finished-date-btn" onclick={openDateEditor} aria-label="Edit Completed Date">
-    {#if finishedDate}
-      Completed: {finishedDate.toLocaleDateString()}
+  <button class="date-picker-btn" onclick={openDateEditor} aria-label="Edit {labelMap[forStatus] || 'Date'}">
+    {#if statusDate}
+      {labelMap[forStatus] || "Date"}: {statusDate.toLocaleDateString()}
     {:else}
-      Set Completed Date
+      Set {labelMap[forStatus] || "Date"}
     {/if}
   </button>
 </div>
@@ -123,7 +140,7 @@
     font-size: 14px;
   }
 
-  .finished-date-btn {
+  .date-picker-btn {
     height: 32px;
     width: 150px;
     display: flex;
@@ -136,16 +153,20 @@
     font-weight: 500;
     color: #acb1b8;
     cursor: pointer;
-    background: linear-gradient(180deg, #323e51 0%, #1f3059 100%);
-    border: none;
-    transition: transform 250ms ease, color 250ms ease-in-out;
+    background: #1e293b;
+    /* background: linear-gradient(180deg, #323e51 0%, #1f3059 100%); */
+    border: 1px solid #334155;
+    /* border: none; */
+    transition:
+      transform 250ms ease,
+      color 250ms ease-in-out;
   }
 
-  .finished-date-btn:hover {
+  .date-picker-btn:hover {
     color: #cbd5e1;
   }
 
-  .finished-date-btn:active {
+  .date-picker-btn:active {
     transform: scale(0.92);
   }
 

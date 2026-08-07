@@ -19,7 +19,7 @@
   import InfoBox from "@/components/PopupBoxes/InfoBox.svelte";
   import EditTags from "@/components/TagManagers/EditTags.svelte";
   import Notes from "@/components/Notes.svelte";
-  import CompletedDate from "@/components/CompletedDate.svelte";
+  import DatePicker from "@/components/DatePicker.svelte";
 
   // tracks open/close status of the side panel for view in library button
   chrome.runtime.connect({ name: "sidepanel-heartbeat" });
@@ -103,6 +103,7 @@
       manhwaStore.update(selectedManhwa.id, {
         currentChapter: chapterNumber,
         status: "Reading",
+        startedOn: selectedManhwa.startedOn ?? Date.now(),
         chapters: finalChapters,
         completedOn: null // Clear the completedOn date when marking as reading
       });
@@ -140,6 +141,9 @@
           completedOn,
           currentChapter
         });
+      } else if (label === "Reading") {
+        const startedOn = Date.now();
+        manhwaStore.update(selectedManhwa.id, { status: label, startedOn });
       } else {
         manhwaStore.update(selectedManhwa.id, { status: statusValues.find((s) => s === label) });
       }
@@ -174,6 +178,12 @@
   function handleRatingSelect(value: number) {
     if (selectedManhwa) {
       manhwaStore.update(selectedManhwa.id, { rating: value });
+    }
+  }
+
+  function clearRating() {
+    if (selectedManhwa) {
+      manhwaStore.update(selectedManhwa.id, { rating: null });
     }
   }
 
@@ -274,15 +284,19 @@
     </div>
 
     <div class="controls-stack">
-      <RatingBar rating={selectedManhwa.rating} onSelect={handleRatingSelect} />
+      <RatingBar rating={selectedManhwa.rating} onSelect={handleRatingSelect} onClear={clearRating} />
       <ProgressBar manhwa={selectedManhwa} />
       <StatusBar labels={statusValues} selected={selectedStatus} onSelect={handleStatusSelect} />
       <!-- <Rating rating={selectedManhwa.rating} onSelect={handleRatingSelect} /> -->
+      <div class="dates-row">
+        <DatePicker manhwa={selectedManhwa} forStatus="Reading" />
+        <DatePicker manhwa={selectedManhwa} forStatus="Completed" />
+      </div>
       <div class="controls-row">
         <GoToBtn label="Read at" onClick={openManhwaUrl} icon={linkToSvg} />
         <ChapterDropdown manhwa={selectedManhwa} onSelect={handleChapterSelect} />
-        <FavoriteButton favorite={selectedManhwa.favorite } onToggle={toggleFavorite} />
-        <HideButton hidden={selectedManhwa.hidden } onToggle={toggleHidden} />
+        <FavoriteButton favorite={selectedManhwa.favorite} onToggle={toggleFavorite} />
+        <HideButton hidden={selectedManhwa.hidden} onToggle={toggleHidden} />
       </div>
       <div class="genre-tags">
         {#each shownTags as tag, i (i)}
@@ -303,7 +317,6 @@
       {/if}
       <div class="button-row">
         <Button label="Open Library" colorFrom="#1e293b" colorTo="#334155" onclick={openPopup} />
-        <CompletedDate manhwa={selectedManhwa} />
         <Button label="Delete" colorFrom="#7f1d1d" colorTo="#450a0a" onclick={() => (showDeleteConfirm = true)} />
       </div>
     </div>
@@ -427,7 +440,13 @@
     gap: 10px;
     flex-wrap: wrap;
   }
-
+  .dates-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
   .genre-tags {
     display: flex;
     gap: 5px;
