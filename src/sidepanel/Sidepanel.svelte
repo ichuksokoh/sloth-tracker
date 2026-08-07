@@ -99,10 +99,10 @@
         }
         return chp;
       });
-
+      const setToPlan = chapterNumber === finalChapters[0].number && !finalChapters[0].read;
       manhwaStore.update(selectedManhwa.id, {
         currentChapter: chapterNumber,
-        status: "Reading",
+        status: setToPlan ? "Plan To Read" : "Reading",
         startedOn: selectedManhwa.startedOn ?? Date.now(),
         chapters: finalChapters,
         completedOn: null // Clear the completedOn date when marking as reading
@@ -121,7 +121,7 @@
   }
 
   // Status management
-  const statusValues = ["Plan To Read", "Reading", "Completed", "Dropped"] as const;
+  const statusValues = ["Plan To Read", "Reading", "Completed", "Dropped", "On Hold"] as const;
 
   let selectedStatus = $derived(selectedManhwa?.status ?? "Plan To Read");
 

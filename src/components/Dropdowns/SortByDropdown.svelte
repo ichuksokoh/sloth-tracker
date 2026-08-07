@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { SortField } from "@/types";
+  import { sineOut } from "svelte/easing";
+  import { fly } from "svelte/transition";
   interface SortByProps {
     options: string[];
     onSelect?: (option: SortField) => void;
@@ -36,9 +38,7 @@
     if (open && panelEl) {
       const activeEl = panelEl.querySelector(".sort-row.is-active") as HTMLElement | null;
       if (activeEl) {
-        const panelRect = panelEl.getBoundingClientRect();
-        const activeRect = activeEl.getBoundingClientRect();
-        const offsetWithinPanel = activeRect.top - panelRect.top + panelEl.scrollTop;
+        const offsetWithinPanel = activeEl.offsetTop;
         panelEl.scrollTop = offsetWithinPanel - panelEl.clientHeight / 2 + activeEl.clientHeight / 2;
       }
     }
@@ -56,7 +56,7 @@
   </button>
 
   {#if open}
-    <div bind:this={panelEl} class="panel">
+    <div bind:this={panelEl} transition:fly={{ duration: 200, delay: 0, y: -20, easing: sineOut }} class="panel">
       {#each optionsUsed as option, index (index)}
         <button
           class="sort-row"
@@ -136,7 +136,7 @@
       0 2px 4px rgba(0, 0, 0, 0.25);
     padding: 6px;
     z-index: 50;
-    animation: panel-in 500ms cubic-bezier(0.16, 1, 0.3, 1);
+    /* animation: panel-in 500ms cubic-bezier(0.16, 1, 0.3, 1); */
   }
 
   @keyframes panel-in {

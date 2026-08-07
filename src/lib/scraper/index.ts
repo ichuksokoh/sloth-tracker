@@ -13,7 +13,7 @@ export function scrapeCurrentPage(): ScrapedManhwa {
 
   const base = scrapeGeneric(document, url);
   const anchorsChps = extractChapters(document, url);
-  const totalChapters =  anchorsChps.chapters.length  || null;
+  const totalChapters =  anchorsChps.chapters.length;
   const adapterKey = Object.keys(adapters).find((key) => hostname.includes(key));
   const override = adapterKey ? adapters[adapterKey](document, url) : {};
 
@@ -35,7 +35,7 @@ export async function scrapeCurrentPageFull(): Promise<ScrapedManhwa> {
 
   // const scrolled_anchor_chps = await scrapeInfiniteScrollChapters(document, url);
   const base = scrapeGeneric(document, url);
-  const totalChapters = chapterData.chapters.length || null;
+  const totalChapters = chapterData.chapters.length;
   const adapterKey = Object.keys(adapters).find((key) => hostname.includes(key));
   const override = adapterKey ? adapters[adapterKey](document, url) : {};
 

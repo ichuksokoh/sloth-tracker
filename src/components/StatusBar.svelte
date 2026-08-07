@@ -1,6 +1,6 @@
 <script lang="ts">
   let {
-    labels = ["Plan To Read", "Reading", "Completed", "Dropped"],
+    labels = ["Plan To Read", "Reading", "Completed", "Dropped", "On Hold"],
     selected = $bindable(labels[0]),
     onSelect
   }: {

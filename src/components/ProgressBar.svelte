@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Manhwa } from "@/types";
+  import { Spring } from "svelte/motion";
 
   interface ProgressBarProps {
     manhwa: Manhwa;
@@ -22,6 +23,25 @@
       ? Math.min(100, round((current / total) * 100, 1))
       : 0
   );
+
+    // Leave for later as a setting option if user doens't want to animate on each open
+  // let initialized = $state(false);
+
+  const progress = new Spring(0, {
+    stiffness: 0.08,
+    damping: 0.6
+  });
+
+
+  $effect(() => {
+    progress.target = percent;
+    // if (!initialized) {
+    //   progress.set(percent, {instant: true});
+    //   initialized = true;
+    // } else {
+    //   progress.target = percent;
+    // }
+  });
 </script>
 
 <div class="progress-wrap">
@@ -41,7 +61,7 @@
   </div>
 
   <div class="progress-track" class:card={isCard}>
-    <div class="progress-fill" style="width: {percent}%"></div>
+    <div class="progress-fill" style="width: {progress.current}%"></div>
   </div>
 </div>
 
@@ -90,6 +110,7 @@
     height: 100%;
     background: linear-gradient(90deg, #27299b 0%, #4f46e5 50%, #818cf8 100%);
     border-radius: 999px;
+    /* transition: none; */
     transition: width 1000ms cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
   }

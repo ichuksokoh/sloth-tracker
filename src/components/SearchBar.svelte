@@ -33,7 +33,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 14px 16px 10px;
+    margin: 0px 16px 10px;
     padding: 10px 14px;
     background: #1e293b;
     border: 1px solid #334155;

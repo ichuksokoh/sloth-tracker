@@ -129,7 +129,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
     favorite: false,
     hidden: false,
     currentChapter: scraped.chapters.length > 0 ? scraped.chapters[0].number : 0,
-    totalChapters: scraped.totalChapters ?? undefined,
+    totalChapters: scraped.totalChapters,
     chapters: scraped.chapters,
     tags: [],
     ogTags: [],

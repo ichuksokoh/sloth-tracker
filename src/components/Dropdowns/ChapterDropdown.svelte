@@ -1,18 +1,16 @@
 <script lang="ts">
   import type { Manhwa } from "@/types";
+  import { sineOut } from "svelte/easing";
+  import { fly } from "svelte/transition";
 
-  let {
-    manhwa,
-    onSelect,
-  }: { manhwa: Manhwa; onSelect: (chapterNumber: number) => void } = $props();
+  let { manhwa, onSelect }: { manhwa: Manhwa; onSelect: (chapterNumber: number) => void } = $props();
 
   let open = $state(false);
   let panelEl = $state<HTMLElement | null>(null);
   let triggerEl = $state<HTMLElement | null>(null);
 
   let currentChapterLabel = $derived(
-    manhwa.chapters.find((c) => c.number === manhwa.currentChapter)?.label ??
-      `${manhwa.chapters[0].label}`,
+    manhwa.chapters.find((c) => c.number === manhwa.currentChapter)?.label ?? `${manhwa.chapters[0].label}`
   );
 
   function toggle() {
@@ -35,18 +33,10 @@
   // Scroll the active chapter into view whenever the panel opens
   $effect(() => {
     if (open && panelEl) {
-      const activeEl = panelEl.querySelector(
-        ".chapter-row.is-active",
-      ) as HTMLElement | null;
+      const activeEl = panelEl.querySelector(".chapter-row.is-active") as HTMLElement | null;
       if (activeEl) {
-        const panelRect = panelEl.getBoundingClientRect();
-        const activeRect = activeEl.getBoundingClientRect();
-        const offsetWithinPanel =
-          activeRect.top - panelRect.top + panelEl.scrollTop;
-        panelEl.scrollTop =
-          offsetWithinPanel -
-          panelEl.clientHeight / 2 +
-          activeEl.clientHeight / 2;
+        const offsetWithinPanel = activeEl.offsetTop;
+        panelEl.scrollTop = offsetWithinPanel - panelEl.clientHeight / 2 + activeEl.clientHeight / 2;
       }
     }
   });
@@ -55,26 +45,15 @@
 <svelte:window onclick={handleWindowClick} />
 
 <div class="picker">
-  <button
-    bind:this={triggerEl}
-    class="trigger"
-    class:is-open={open}
-    onclick={toggle}
-  >
+  <button bind:this={triggerEl} class="trigger" class:is-open={open} onclick={toggle}>
     <span class="trigger-label">{currentChapterLabel}</span>
-    <svg
-      class="chevron"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.5"
-    >
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
       <polyline points="18 15 12 9 6 15" />
     </svg>
   </button>
 
   {#if open}
-    <div bind:this={panelEl} class="panel">
+    <div bind:this={panelEl} transition:fly={{ duration: 350, delay: 0, y: 20, easing: sineOut }} class="panel">
       {#each manhwa.chapters as chapter (chapter.number)}
         <button
           class="chapter-row"
@@ -83,13 +62,7 @@
         >
           <span>{chapter.label}</span>
           {#if (chapter.number === manhwa.currentChapter && chapter.read) || chapter.read}
-            <svg
-              class="check"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
+            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           {/if}
@@ -163,18 +136,6 @@
       0 2px 4px rgba(0, 0, 0, 0.25);
     padding: 6px;
     z-index: 50;
-    animation: panel-in 500ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @keyframes panel-in {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(6px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0) scale(1);
-    }
   }
 
   .panel::-webkit-scrollbar {

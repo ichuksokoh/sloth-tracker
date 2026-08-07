@@ -19,7 +19,7 @@
   let debouncedQuery = $state(""); // updates after typing pauses, drives the filter
   let isSearching = $state(false); // true during the "waiting to settle" window
   let status = $state("All"); // 'All', 'Reading', 'Plan To Read', 'Completed', 'Dropped'
-  const statusValues = ["All", "Plan To Read", "Reading", "Completed", "Dropped"] as const;
+  const statusValues = ["All", "Plan To Read", "Reading", "Completed", "Dropped", "On Hold"] as const;
   const sortByOptions = [
     "Title",
     "Recently Added",
@@ -384,6 +384,7 @@
     color: #e2e8f0;
     overflow: hidden;
     border-radius: 8px;
+    padding: 14px 0px 0px;
   }
 
   .searching-state {
@@ -451,7 +452,7 @@
   .grid-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 1px 16px 16px;
+    padding: 8px 8px 12px;
   }
 
   .grid-scroll::-webkit-scrollbar {

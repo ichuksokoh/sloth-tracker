@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { Manhwa } from "@/types";
+  import type { Manhwa, ReadStatus } from "@/types";
   import { retrieveCover } from "@/lib/coverCache.svelte";
   import { manhwaStore } from "@/lib/manhwaStore.svelte";
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
   import ProgressBar from "@/components/ProgressBar.svelte";
+  import StatusDropdown from "./Dropdowns/StatusDropdown.svelte";
+  import ChapterOverlay from "./Dropdowns/ChapterOverlay.svelte";
 
   interface CardProps {
     manhwa: Manhwa;
@@ -26,6 +28,72 @@
   }: CardProps = $props();
 
   const cover = retrieveCover(() => manhwa);
+
+  let chapterPickerOpen = $state(false);
+
+  function handleChapterTriggerClick(e: MouseEvent) {
+    if (selectMode) return; // let the click bubble to the card's own select-toggle handler
+    e.stopPropagation(); // don't trigger the card's "open side panel" click
+    chapterPickerOpen = !chapterPickerOpen;
+  }
+
+  function handleChapterSelect(chapterNumber: number) {
+    if (manhwa) {
+      let falsePrior = true;
+      const chapters = manhwa.chapters.map((chp) => {
+        if (chp.number <= chapterNumber) {
+          if (chp.number === chapterNumber && chp.read) {
+            falsePrior = false;
+          }
+          return { ...chp, read: true };
+        }
+        return { ...chp, read: false };
+      });
+
+      const finalChapters = chapters.map((chp, i) => {
+        if (chp.number === chapterNumber && !falsePrior) {
+          chapterNumber = i > 0 ? chapters[i - 1].number : chp.number;
+          return { ...chp, read: false };
+        }
+        return chp;
+      });
+      const setToPlan = chapterNumber === finalChapters[0].number && !finalChapters[0].read;
+      manhwaStore.update(manhwa.id, {
+        currentChapter: chapterNumber,
+        status: setToPlan ? "Plan To Read" : "Reading",
+        startedOn: manhwa.startedOn ?? Date.now(),
+        chapters: finalChapters,
+        completedOn: null // Clear the completedOn date when marking as reading
+      });
+    }
+  }
+
+  function handleStatusSelect(newStatus: ReadStatus) {
+    if (newStatus === "Completed") {
+      const updatedChapters = manhwa.chapters.map((chp) => {
+        return { ...chp, read: true };
+      });
+      const newCurrentChapter = manhwa.totalChapters;
+      manhwaStore.update(manhwa.id, {
+        currentChapter: newCurrentChapter,
+        status: newStatus,
+        completedOn: Date.now(),
+        chapters: updatedChapters
+      });
+    } else if (newStatus === "Plan To Read") {
+      const updatedChapters = manhwa.chapters.map((chp) => {
+        return { ...chp, read: false };
+      });
+      manhwaStore.update(manhwa.id, {
+        currentChapter: 1,
+        status: newStatus,
+        chapters: updatedChapters
+      });
+    } else {
+      manhwaStore.update(manhwa.id, { status: newStatus, completedOn: null });
+    }
+    manhwaStore.update(manhwa.id, { status: newStatus });
+  }
 
   function checkOverflow(node: HTMLElement) {
     const resizeObserver = new ResizeObserver(() => {
@@ -57,7 +125,8 @@
     Reading: "#4338ca",
     "Plan To Read": "#334155",
     Completed: "#0f766e",
-    Dropped: "#7f1d1d"
+    Dropped: "#7f1d1d",
+    "On Hold": "#a16207"
   };
 
   let badgeBg = $derived(statusColors[manhwa.status] ?? "#334155");
@@ -162,7 +231,15 @@
             />
           </svg>
         </button>
-        <span class="status-badge" style="background: {badgeBg}ea; color: {badgeText};">{manhwa.status}</span>
+        <div class="status-dropdown-wrapper">
+          <StatusDropdown
+            currentSelection={manhwa.status}
+            options={["Reading", "Plan To Read", "Completed", "Dropped", "On Hold"]}
+            onSelect={handleStatusSelect}
+            bgColor={badgeBg}
+            textColor={badgeText}
+          />
+        </div>
         <button class="delete-btn" onclick={handleDelete} aria-label="Delete manhwa">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -174,14 +251,24 @@
         <span>{manhwa.rating?.toFixed(2)}</span>
       </div>
     {/if}
+    <ChapterOverlay {manhwa} bind:open={chapterPickerOpen} onSelect={handleChapterSelect} />
   </div>
-  <ProgressBar {manhwa} isCard={true} />
+  <button class="chapter-trigger" onclick={handleChapterTriggerClick} aria-label="Select chapter">
+    <ProgressBar {manhwa} isCard={true} />
+    <div class="title-wrap" use:checkOverflow>
+      <div class="marquee-content">
+        <span class="title-main">{manhwa.title}</span>
+        <span class="title-duplicate" aria-hidden="true">{manhwa.title}</span>
+      </div>
+    </div>
+  </button>
+  <!-- <ProgressBar {manhwa} isCard={true} />
   <div class="title-wrap" use:checkOverflow>
     <div class="marquee-content">
       <span class="title-main">{manhwa.title}</span>
       <span class="title-duplicate" aria-hidden="true">{manhwa.title}</span>
     </div>
-  </div>
+  </div> -->
 </div>
 
 <style>
@@ -239,17 +326,6 @@
     justify-content: center;
     color: #475569;
     font-size: 24px;
-  }
-
-  .status-badge {
-    padding: 2px 7px;
-    border-radius: 999px;
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    backdrop-filter: blur(4px);
-    white-space: nowrap;
   }
 
   .favorite-toggle,
@@ -361,6 +437,16 @@
     gap: 6px;
   }
 
+  .status-dropdown-wrapper {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  .card:hover .status-dropdown-wrapper {
+    opacity: 1;
+    transform: scale(1);
+  }
+
   .rating {
     position: absolute;
     bottom: 6px;
@@ -412,5 +498,21 @@
   .select-check svg {
     width: 12px;
     height: 12px;
+  }
+
+  .chapter-trigger {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* matches the .card gap it used to inherit as a direct child */
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
 </style>

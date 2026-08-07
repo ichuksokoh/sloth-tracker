@@ -31,13 +31,13 @@ export interface ScrapedManhwa {
   title: string;
   coverUrl: string | null;
   description: string | null;
-  totalChapters: number | null;
+  totalChapters: number;
   chapters: ScrapedChapter[];
   sourceUrl: string;
 }
 
 // Types for the main library data structure
-export type ReadStatus = "Reading" | "Plan To Read" | "Completed" | "Dropped";
+export type ReadStatus = "Reading" | "Plan To Read" | "Completed" | "Dropped" | "On Hold";
 export type Tags = { tagName: string; isCustom: boolean; hidden: boolean };
 
 export interface Manhwa {
@@ -51,7 +51,7 @@ export interface Manhwa {
   favorite: boolean; // optional — if you want to mark it as a favorite
   hidden: boolean; // optional — if you want to hide it from the library view
   currentChapter: number;
-  totalChapters?: number; // optional — often unknown/ongoing
+  totalChapters: number;
   chapters: ScrapedChapter[];
   tags: Tags[];
   ogTags: Tags[]; // original tags from the source, for reference
