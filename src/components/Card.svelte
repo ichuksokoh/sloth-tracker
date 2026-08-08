@@ -6,6 +6,9 @@
   import ProgressBar from "@/components/ProgressBar.svelte";
   import StatusDropdown from "./Dropdowns/StatusDropdown.svelte";
   import ChapterOverlay from "./Dropdowns/ChapterOverlay.svelte";
+  import FavoriteButton from "./Buttons/FavoriteButton.svelte";
+  import HideButton from "./Buttons/HideButton.svelte";
+  import { sampleRegionLuminance } from "@/lib/imageBrightness";
 
   interface CardProps {
     manhwa: Manhwa;
@@ -133,14 +136,26 @@
   let badgeText = $derived(getContrastTextColor(badgeBg));
 
   let isLandscape = $state(false);
+  let coverLuminance = $state(1);
+
   function handleImageLoad(e: Event) {
     const img = e.currentTarget as HTMLImageElement;
     isLandscape = img.naturalWidth > img.naturalHeight;
+
+    // top-left corner, best sample
+    coverLuminance = sampleRegionLuminance(img, { xFrac: 0, yFrac: 0, wFrac: 0.25, hFrac: 0.18 });
   }
 
   function handleToggleFavorite(e: MouseEvent) {
     e.stopPropagation();
     manhwaStore.update(manhwa.id, { favorite: !manhwa.favorite });
+  }
+
+  function handleToggleFav() {
+    manhwaStore.update(manhwa.id, { favorite: !manhwa.favorite });
+  }
+  function handleToggleHidden() {
+    manhwaStore.update(manhwa.id, { hidden: !manhwa.hidden });
   }
 
   let showDeleteConfirm = $state(false);
@@ -213,24 +228,14 @@
       </div>
     {:else}
       <div class="overlay-controls">
-        <button
-          class="favorite-toggle"
-          class:is-active={manhwa.favorite}
-          onclick={handleToggleFavorite}
-          aria-pressed={manhwa.favorite}
-          aria-label={manhwa.favorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill={manhwa.favorite ? "currentColor" : "none"}
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polygon
-              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-            />
-          </svg>
-        </button>
+        <div class="favorite-btn-wrapper">
+          <FavoriteButton
+            favorite={manhwa.favorite}
+            onToggle={handleToggleFav}
+            isCard={true}
+            bgLuminance={coverLuminance}
+          />
+        </div>
         <div class="status-dropdown-wrapper">
           <StatusDropdown
             currentSelection={manhwa.status}
@@ -250,6 +255,14 @@
       <div class="rating">
         <span>{manhwa.rating?.toFixed(2)}</span>
       </div>
+      <div class="hide-btn-wrapper">
+        <HideButton
+          hidden={manhwa.hidden}
+          onToggle={handleToggleHidden}
+          isCard={true}
+          bgLuminance={coverLuminance}
+        />
+      </div>
     {/if}
     <ChapterOverlay {manhwa} bind:open={chapterPickerOpen} onSelect={handleChapterSelect} />
   </div>
@@ -262,13 +275,6 @@
       </div>
     </div>
   </button>
-  <!-- <ProgressBar {manhwa} isCard={true} />
-  <div class="title-wrap" use:checkOverflow>
-    <div class="marquee-content">
-      <span class="title-main">{manhwa.title}</span>
-      <span class="title-duplicate" aria-hidden="true">{manhwa.title}</span>
-    </div>
-  </div> -->
 </div>
 
 <style>
@@ -328,7 +334,6 @@
     font-size: 24px;
   }
 
-  .favorite-toggle,
   .delete-btn {
     display: flex;
     align-items: center;
@@ -353,29 +358,16 @@
       rotate 250ms ease;
   }
 
-  .card:hover .favorite-toggle,
   .card:hover .delete-btn {
     opacity: 1;
     transform: scale(1);
   }
 
-  .favorite-toggle svg,
   .delete-btn svg {
     width: 12px;
     height: 12px;
   }
 
-  .favorite-toggle.is-active {
-    opacity: 1;
-    transform: scale(1);
-    color: #fbbf24;
-    border-color: rgba(251, 191, 36, 0.4);
-    background: rgba(251, 191, 36, 0.15);
-  }
-
-  .favorite-toggle:hover {
-    color: #fcd34d;
-  }
 
   .delete-btn:hover {
     background: rgba(122, 15, 15, 0.497);
@@ -442,9 +434,13 @@
     transform: scale(0.85);
   }
 
-  .card:hover .status-dropdown-wrapper {
-    opacity: 1;
-    transform: scale(1);
+  .card:hover {
+    .status-dropdown-wrapper,
+    .hide-btn-wrapper,
+    .favorite-btn-wrapper {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .rating {
@@ -462,6 +458,33 @@
     font-weight: 600;
     color: #818cf8;
   }
+
+  .favorite-btn-wrapper {
+    opacity: 0;
+    transform: scale(0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      opacity 10ms ease,
+      transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+
+  .hide-btn-wrapper {
+    opacity: 0;
+    transform: scale(0.85);
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      opacity 10ms ease,
+      transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
 
   .select-overlay {
     position: absolute;

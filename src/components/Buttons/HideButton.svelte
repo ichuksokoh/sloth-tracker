@@ -4,6 +4,8 @@
     onToggle?: (next: boolean) => void;
     forStatus?: boolean;
     size?: number;
+    isCard?: boolean;
+    bgLuminance?: number; // 0 (dark bg) - 1 (light bg)
   }
 
   let {
@@ -11,27 +13,37 @@
     onToggle,
     forStatus = false,
     size = 34,
+    isCard = false,
+    bgLuminance = 1
   }: HideButtonProps = $props();
 
-  function handleClick() {
+  function handleClick(e: Event) {
+    e.stopPropagation();
     hidden = !hidden;
     onToggle?.(hidden);
   }
 
   let ariaLabel = $derived(
-    hidden
-      ? forStatus
-        ? "Showing hidden only"
-        : "Unhide"
-      : forStatus
-        ? "Show hidden only"
-        : "Hide",
+    hidden ? (forStatus ? "Showing hidden only" : "Unhide") : forStatus ? "Show hidden only" : "Hide"
   );
+
+  let onLightBg = $derived(bgLuminance > 0.55);
+
+  $effect(() => {
+    console.log(
+      "HideButton bgLuminance:",
+      $state.snapshot(bgLuminance),
+      "onLightBg:",
+      $state.snapshot(onLightBg)
+    );
+  });
 </script>
 
 <button
   class="hide-btn"
   class:is-active={hidden}
+  class:is-card={isCard}
+  class:is-on-light={onLightBg}
   onclick={handleClick}
   aria-pressed={hidden}
   aria-label={ariaLabel}
@@ -56,6 +68,7 @@
     {/if}
   </svg>
 </button>
+
 <style>
   .hide-btn {
     display: flex;
@@ -100,6 +113,62 @@
 
   .hide-btn:active {
     transform: scale(0.9);
+  }
+
+  /* ---- card variant (dark cover assumed by default) ---- */
+  .hide-btn.is-card {
+    appearance: none;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: rgba(15, 23, 42, 0.527);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    color: #cbd5e1;
+    transition:
+      transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      background-color 250ms ease,
+      border-color 250ms ease,
+      color 250ms ease,
+      rotate 250ms ease;
+  }
+
+  .hide-btn.is-card svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .hide-btn.is-card.is-active {
+    color: #d3d5dc;
+    border-color: rgba(129, 140, 248, 0.4);
+    background: rgba(99, 101, 241, 0.527);
+    animation: pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* ---- card variant on a light cover ---- */
+  .hide-btn.is-card.is-on-light:not(.is-active) {
+    background: rgba(255, 255, 255, 0.55);
+    border-color: rgba(100, 116, 139, 0.25);
+    color: #334155;
+  }
+
+  .hide-btn.is-card.is-on-light:not(.is-active):hover {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(71, 85, 105, 0.35);
+    color: #1e293b;
+  }
+
+  .hide-btn.is-card.is-on-light.is-active {
+    background: rgba(79, 70, 229, 0.18);
+    border-color: rgba(79, 70, 229, 0.45);
+    color: #4338ca;
+  }
+
+  .hide-btn.is-card.is-on-light.is-active:hover {
+    background: rgba(79, 70, 229, 0.26);
+    color: #3730a3;
   }
 
   @keyframes pop {
