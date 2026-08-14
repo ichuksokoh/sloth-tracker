@@ -1,6 +1,6 @@
 import { withLock } from "./asyncMutex";
-import type { Manhwa, ScrapedChapter, ScrapedManhwa, TagTracker } from "@/types";
-import { deleteCachedCover, cacheCover } from "./coverCache.svelte";
+import type { ImportOptions, Manhwa, ManhwaExport, ScrapedChapter, ScrapedManhwa, Tags, TagTracker } from "@/types";
+import { deleteCachedCover, cacheCover, getCachedCover, base64ToBlob } from "./coverCache.svelte";
 import { stringSimilarity } from "./titleMatch";
 import { fetchMangaTags } from "@/background/services/anilist";
 import { fetchMangadexCover } from "@/background/services/mangadex";
@@ -118,6 +118,27 @@ async function reviveManhwa(scraped: ScrapedManhwa): Promise<Manhwa | null> {
   return null;
 }
 
+async function fetchCovers(manhwa: Manhwa): Promise<void> {
+  console.log("[background] is Caching covers");
+  if (manhwa.coverUrl) {
+    try {
+      const res = await fetch(manhwa.coverUrl);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const blob = await res.blob();
+      await cacheCover(manhwa.id, blob);
+    } catch (err) {
+      console.warn("[background] no cover found for", manhwa.title);
+      console.log("[background] attempting to fetch fallback cover from MangaDex for", manhwa.title);
+      const fallbackBlob = await fetchMangadexCover(manhwa.title);
+      if (fallbackBlob) {
+        await cacheCover(manhwa.id, fallbackBlob);
+      } else {
+        console.warn("[background] no fallback cover found for", manhwa.title);
+      }
+    }
+  }
+}
+
 async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> {
   const manhwa: Manhwa = {
     id: crypto.randomUUID(),
@@ -137,23 +158,7 @@ async function createManhwaFromScraped(scraped: ScrapedManhwa): Promise<Manhwa> 
     updatedAt: Date.now()
   };
 
-  if (manhwa.coverUrl) {
-    try {
-      const res = await fetch(manhwa.coverUrl);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const blob = await res.blob();
-      await cacheCover(manhwa.id, blob);
-    } catch (err) {
-      console.warn("[background] no cover found for", manhwa.title);
-      console.log("[background] attempting to fetch fallback cover from MangaDex for", manhwa.title);
-      const fallbackBlob = await fetchMangadexCover(manhwa.title);
-      if (fallbackBlob) {
-        await cacheCover(manhwa.id, fallbackBlob);
-      } else {
-        console.warn("[background] no fallback cover found for", manhwa.title);
-      }
-    }
-  }
+  await fetchCovers(manhwa);
 
   try {
     const aniListMedia = await fetchMangaTags(manhwa.title);
@@ -277,6 +282,119 @@ export function updateManhwa(id: string, patch: Partial<Manhwa>, customUpdate: b
 
     const next = list.map((m) => (m.id === id ? patchedManhwa : m));
     await writeManhwaList(next);
+  });
+}
+
+
+async function applyIncomingCover(manhwa : Manhwa, coverImage: string | undefined): Promise<void> {
+  if (!coverImage) return;
+  try {
+    const blob = base64ToBlob(coverImage, "image/webp");
+    await cacheCover(manhwa.id, blob);
+  } catch (err) {
+    console.warn("[background] failed to cache imported cover for", manhwa.title, err);
+  }
+}
+
+// Solely for importing Manhwas
+// If need for this arises elsewhere, make another genereic upsert then use this as a wrapper
+export function upsertManhwa(incoming: ManhwaExport, onConflict: ImportOptions) {
+  console.log("[background] upsertManhwas: incoming manhwa", incoming);
+  return withLock(async () => {
+    const list = await readManhwaList();
+    const recentlyDeleted = await readRecentlyDeleted();
+    const incomingHost = getHostname(incoming.sourceUrl);
+    const {coverImage, ...incomingManhwa} = incoming;
+
+    // 1. Abstract the complex search logic to avoid duplication
+    const findMatch = (arr: Manhwa[]) =>
+      arr.find(
+        (m) =>
+          m.id === incomingManhwa.id ||
+          (m.title === incomingManhwa.title &&
+            (m.sourceUrl === incomingManhwa.sourceUrl || getHostname(m.sourceUrl) === incomingHost || true))
+      ) ?? null;
+
+    let manhwaToPatch = findMatch(list);
+    let fromDeletedList = false;
+
+    if (!manhwaToPatch) {
+      manhwaToPatch = findMatch(recentlyDeleted.map((m) => ({ ...m, __deletedAt: undefined })));
+      fromDeletedList = !!manhwaToPatch;
+    }
+
+    let updatedManhwa: Manhwa | null = null;
+
+    // 2. Conflict Handling & Resolution Strategies
+    if (manhwaToPatch) {
+      if (onConflict.onConflict === "skip") {
+        if (!fromDeletedList) return; // Completely skip if already in main list
+        // If skipped but found in deleted, resurrect it using original state
+        updatedManhwa = { ...manhwaToPatch, updatedAt: Date.now() };
+      } else if (onConflict.onConflict === "overwrite") {
+        const hasMoreChapters = incomingManhwa.totalChapters > manhwaToPatch.totalChapters;
+        if (hasMoreChapters) {
+           // Incoming wins — id is pinned to the existing record, and its cover replaces the old one
+          updatedManhwa = { ...incomingManhwa, id: manhwaToPatch.id, updatedAt: Date.now() };
+          await applyIncomingCover(updatedManhwa, coverImage);
+        } else {
+          // Existing wins — incoming cover is not needed
+          updatedManhwa = { ...manhwaToPatch, updatedAt: Date.now() };
+        }
+      } else {
+        console.log("[background] upsertManhwas: unknown option for:", manhwaToPatch.title);
+        return;
+      }
+    } else {
+      updatedManhwa = { ...incomingManhwa, updatedAt: Date.now() };
+    }
+
+    if (!updatedManhwa) return;
+
+    // 3. Process Tags & Tag Managers safely
+    const allTags = await readAllTags();
+    console.log("[background] manhwa tags in store", allTags);
+    const oldTags = manhwaToPatch?.tags ?? [];
+
+    if (manhwaToPatch) {
+      const tagsMap = [...oldTags, ...(updatedManhwa.tags ?? [])].reduce((map, tag) => {
+        return map.set(tag.tagName, { ...tag, hidden: updatedManhwa!.hidden });
+      }, new Map<string, Tags>());
+
+      updatedManhwa.tags = Array.from(tagsMap.values());
+      if (!fromDeletedList) {
+        tagManager.updateAllTags(allTags, oldTags, -1);
+      }
+    }
+
+    tagManager.updateAllTags(allTags, updatedManhwa.tags ?? [], 1);
+    await writeAllTags(allTags);
+
+    // 4. FIX: Correctly rebuild lists based on originating list location
+    let cleanNext: Manhwa[];
+
+    if (fromDeletedList) {
+      console.log("[background] upsertManhwas: resurrecting manhwa from recently deleted:", updatedManhwa.title);
+      // Append resurrected item to main list, prune from deleted
+      cleanNext = [...list, updatedManhwa];
+      const prunedDeletedList = recentlyDeleted.filter((m) => m.id !== manhwaToPatch!.id);
+      await writeRecentlyDeleted(prunedDeletedList);
+    } else if (manhwaToPatch) {
+      // Modify in-place if it was already in the active list
+      cleanNext = list.map((m) => (m.id === manhwaToPatch!.id ? updatedManhwa! : m));
+    } else {
+      // Fetch images with APIs in case coverUrl is present but blocked by CORS or use coverImage if provided
+      if (coverImage) {
+        console.log("[background] upsertManhwas: applying incoming cover for", updatedManhwa.title);
+        await applyIncomingCover(updatedManhwa, coverImage);
+      } else {
+        await fetchCovers(updatedManhwa);
+      }
+      // Brand new record 
+      cleanNext = [...list, updatedManhwa];
+    }
+
+    await writeManhwaList(cleanNext);
   });
 }
 

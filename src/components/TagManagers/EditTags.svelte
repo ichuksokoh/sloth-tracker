@@ -11,6 +11,7 @@
   import Searchbar from "../SearchBar.svelte";
   import { stringSimilarity } from "@/lib/titleMatch";
   import SearchBar from "../SearchBar.svelte";
+  import { toastStore } from "@/lib/toastStore.svelte";
 
   interface EditTagsProps {
     manhwa: Manhwa;
@@ -129,6 +130,7 @@
     tagsToBeRemoved = [];
     customTagsToAdd = [];
     defaultTagsToAdd = [];
+    toastStore.show("Tags updated successfully");
   }
 
   async function onInputEnter(event: KeyboardEvent) {

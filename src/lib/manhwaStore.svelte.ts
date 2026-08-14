@@ -1,6 +1,14 @@
-import type { Manhwa, ScrapedManhwa, TagTracker } from "@/types";
+import {
+  ManhwaSchema,
+  type ImportOptions,
+  type Manhwa,
+  type ManhwaExport,
+  type ScrapedManhwa,
+  type TagTracker
+} from "@/types";
 import { stringSimilarity } from "./titleMatch";
 import { untrack } from "svelte";
+import { z } from "zod";
 
 let list = $state<Manhwa[]>([]);
 let allTags = $state<Record<string, TagTracker>>({});
@@ -22,19 +30,44 @@ chrome.storage.local.get<{ hiddenTags: Record<string, TagTracker> }>({ hiddenTag
   hiddenTags = stored && typeof stored === "object" ? stored : {};
 });
 
+function reconcileList(oldList: Manhwa[], newList: Manhwa[]): Manhwa[] {
+  const oldById = new Map(oldList.map((m) => [m.id, m]));
+  return newList.map((next) => {
+    const prev = oldById.get(next.id);
+    return prev && prev.updatedAt === next.updatedAt ? prev : next;
+  });
+}
+
+function reconcileTagRecord(
+  oldTags: Record<string, TagTracker>,
+  newTags: Record<string, TagTracker>
+): Record<string, TagTracker> {
+  const result: Record<string, TagTracker> = {};
+  for (const key in newTags) {
+    const prev = oldTags[key];
+    const next = newTags[key];
+    const nextKeys = Object.keys(next) as (keyof TagTracker)[];
+    result[key] = prev && nextKeys.every((k) => prev[k] === next[k]) ? prev : next;
+  }
+  return result;
+}
+
+const ManhwaListSchema = z.array(ManhwaSchema);
 // stay in sync when ANY context (popup/sidepanel/content) changes it
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.manhwaList) {
     const val = changes.manhwaList.newValue;
-    list = Array.isArray(val) ? (val as Manhwa[]) : [];
+    const parsed = ManhwaListSchema.safeParse(val);
+    if (!parsed.success) {
+      console.error("[manhwaStore] corrupted manhwaList from storage", parsed.error);
+      return; // keep the last known-good `list` instead of wiping the UI
+    }
+    list = reconcileList(list, parsed.data);
   }
   if (area === "local" && changes.allTags) {
     const val = changes.allTags.newValue;
-    allTags = val && typeof val === "object" ? (val as Record<string, TagTracker>) : {};
-  }
-  if (area === "local" && changes.hiddenTags) {
-    const val = changes.hiddenTags.newValue;
-    hiddenTags = val && typeof val === "object" ? (val as Record<string, TagTracker>) : {};
+    const incoming = val && typeof val === "object" ? (val as Record<string, TagTracker>) : {};
+    allTags = reconcileTagRecord(allTags, incoming);
   }
 });
 

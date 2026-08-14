@@ -1,6 +1,7 @@
 import { cacheCover } from "@/lib/coverCache.svelte";
 import { fetchMangadexCover } from "@/background/services/mangadex";
 import * as manhwaDB from "@/lib/manhwaDataAccess";
+import { importLibrary } from "@/lib/importExport";
 
 export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.MessageSender) => Promise<any>> = {
   // Only kept cache-cover for future uploading of alternative images if implemented
@@ -69,6 +70,19 @@ export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.M
     return { ok: true };
   },
 
+  "library:import" : async (msg) => {
+    importLibrary(msg.data, msg.opts).catch((err) => {
+      console.error("[background] error during library import:", err);
+    })
+    return { ok: true, started: true };
+  },
+
+  "library:import-status": async () => {
+    const res = await chrome.storage.session.get(["importProgress"]);
+
+    return { ok: true, progress: res.importProgress ?? null };
+  },
+
   "tag:setActive": async (msg) => {
     await manhwaDB.setTagActive(msg.tag, msg.active);
     return { ok: true };
@@ -77,5 +91,5 @@ export const messageHandlers: Record<string, (msg: any, sender: chrome.runtime.M
   "tag:clearActive": async () => {
     await manhwaDB.clearAllActiveTags();
     return { ok: true };
-  },
+  }
 };

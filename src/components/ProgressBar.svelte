@@ -24,14 +24,13 @@
       : 0
   );
 
-    // Leave for later as a setting option if user doens't want to animate on each open
+  // Leave for later as a setting option if user doens't want to animate on each open
   // let initialized = $state(false);
 
   const progress = new Spring(0, {
     stiffness: 0.08,
     damping: 0.6
   });
-
 
   $effect(() => {
     progress.target = percent;
@@ -110,8 +109,6 @@
     height: 100%;
     background: linear-gradient(90deg, #27299b 0%, #4f46e5 50%, #818cf8 100%);
     border-radius: 999px;
-    /* transition: none; */
-    transition: width 1000ms cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 0 8px rgba(129, 140, 248, 0.5);
   }
 </style>

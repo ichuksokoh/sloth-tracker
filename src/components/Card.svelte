@@ -9,6 +9,8 @@
   import FavoriteButton from "./Buttons/FavoriteButton.svelte";
   import HideButton from "./Buttons/HideButton.svelte";
   import { sampleRegionLuminance } from "@/lib/imageBrightness";
+  import { fade } from "svelte/transition";
+  import { sineOut } from "svelte/easing";
 
   interface CardProps {
     manhwa: Manhwa;
@@ -18,6 +20,7 @@
     selectMode?: boolean;
     selected?: boolean;
     onToggleSelect?: (manhwa: Manhwa) => void;
+    cardElement?: HTMLElement;
   }
 
   let {
@@ -195,9 +198,10 @@
   onclick={() => handleCardClick()}
   onkeydown={(e) => e.key === "Enter" && onClick(manhwa)}
   style="max-width: {maxWidth}; max-height: {maxHeight};"
+  transition:fade={{ duration: 200, easing: sineOut }}
 >
   <div class="cover-wrap">
-    {#if manhwa.coverUrl}
+    {#if cover.url}
       <img
         src={cover.url}
         alt={manhwa.title}
@@ -368,7 +372,6 @@
     height: 12px;
   }
 
-
   .delete-btn:hover {
     background: rgba(122, 15, 15, 0.497);
     border-color: rgba(248, 113, 113, 0.4);
@@ -470,7 +473,6 @@
       transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-
   .hide-btn-wrapper {
     opacity: 0;
     transform: scale(0.85);
@@ -484,7 +486,6 @@
       opacity 10ms ease,
       transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-
 
   .select-overlay {
     position: absolute;

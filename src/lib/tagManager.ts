@@ -29,7 +29,7 @@ export function updateAllTags(
         active: false,
         custom: tag.isCustom,
         ogCount: !isCustomUpdate ? change : 1,
-        hiddenCount: tag.hidden ? change : 0,
+        hiddenCount: tag.hidden ? change : 0
       };
     }
   }
@@ -38,7 +38,7 @@ export function updateAllTags(
   for (const tagName of tags) {
     if (
       allTags[tagName].ogCount <= 0 ||
-      ((allTags[tagName].count <= 0 && allTags[tagName].hiddenCount <= 0) && allTags[tagName].custom)
+      (allTags[tagName].count <= 0 && allTags[tagName].hiddenCount <= 0 && allTags[tagName].custom)
     ) {
       delete allTags[tagName];
     }
@@ -52,4 +52,3 @@ export async function setTagActive(tag: string, active: boolean) {
 export async function clearAllActiveTags() {
   await chrome.runtime.sendMessage({ type: "tag:clearActive" });
 }
-

@@ -3,6 +3,7 @@
   import { getSelectedManhwa, onSelectedManhwaChange } from "@/lib/selectedManhwa.svelte";
   import { retrieveCover } from "@/lib/coverCache.svelte";
   import * as tagManager from "@/lib/tagManager";
+  import * as fields from "@/lib/storageField";
   import type { Manhwa } from "@/types";
   import Button from "@/components/Buttons/Button.svelte";
   import FavoriteButton from "@/components/Buttons/FavoriteButton.svelte";
@@ -11,7 +12,6 @@
   import StatusBar from "@/components/StatusBar.svelte";
   import ChapterDropdown from "@/components/Dropdowns/ChapterDropdown.svelte";
   import DescriptionDrawer from "@/components/DescriptionDrawer.svelte";
-  // import Rating from '@/components/Rating.svelte';
   import RatingBar from "@/components/RatingBar.svelte";
   import GoToBtn from "@/components/Buttons/GoToBtn.svelte";
   import AlertBox from "@/components/PopupBoxes/AlertBox.svelte";
@@ -20,9 +20,9 @@
   import EditTags from "@/components/TagManagers/EditTags.svelte";
   import Notes from "@/components/Notes.svelte";
   import DatePicker from "@/components/DatePicker.svelte";
+  import ToastContainer from "@/components/ToastContainer.svelte";
 
   // tracks open/close status of the side panel for view in library button
-  chrome.runtime.connect({ name: "sidepanel-heartbeat" });
   chrome.windows.getCurrent().then((win) => {
     if (win.id === undefined) return;
     const port = chrome.runtime.connect({ name: "sidepanel-heartbeat" });
@@ -49,6 +49,7 @@
   let showMore = $derived(selectedManhwa ? selectedManhwa.tags.length > 4 : false);
   let moreTags = $derived(selectedManhwa && shownTags ? selectedManhwa.tags.length - shownTags.length : 0);
   let openClosetags = $state(false);
+  let markUnreadOne = $state(false); // false = mark all Unread, true = mark only one unread
 
   const cover = retrieveCover(() => selectedManhwa);
   let isLandscape = $state(false);
@@ -70,16 +71,21 @@
   });
 
   $effect(() => {
-    const id = selectedId;
+    fields.settingsConfigs.get().then((value) => {
+      if (value) {
+        markUnreadOne = value.markUnreadOne;
+      }
+    });
+  });
 
-    if (!id) {
-      selectedManhwa = undefined;
-      return;
+  fields.settingsConfigs.onChange((value) => {
+    if (value) {
+      markUnreadOne = value.markUnreadOne;
     }
   });
 
   // Handling of Chapter Selection and Status Update
-  function handleChapterSelect(chapterNumber: number) {
+  async function handleChapterSelect(chapterNumber: number) {
     if (selectedManhwa) {
       let falsePrior = true;
       const chapters = selectedManhwa.chapters.map((chp) => {
@@ -88,6 +94,9 @@
             falsePrior = false;
           }
           return { ...chp, read: true };
+        }
+        if (markUnreadOne) {
+          return { ...chp };
         }
         return { ...chp, read: false };
       });
@@ -323,6 +332,7 @@
   {:else}
     <p class="no-manhwa">No Manhwa Selected</p>
   {/if}
+  <ToastContainer />
 </div>
 
 <!-- </div> -->

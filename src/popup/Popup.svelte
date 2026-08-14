@@ -14,6 +14,10 @@
   import SortByDirBtn from "@/components/Buttons/SortByDirBtn.svelte";
   import TagFilter from "@/components/TagManagers/TagFilter.svelte";
   import SearchBar from "@/components/SearchBar.svelte";
+  import Settings from "@/components/Settings.svelte";
+  import { flip } from "svelte/animate";
+  import { sineOut } from "svelte/easing";
+  import { preloadCover } from "@/lib/coverCache.svelte";
 
   let searchQuery = $state("");
   let debouncedQuery = $state(""); // updates after typing pauses, drives the filter
@@ -53,16 +57,19 @@
     return a.title.localeCompare(b.title); // tiebreak stays constant regardless of direction
   }
   let showFavoritesOnly = $state(false);
+  let appliedFavoritesOnly = $state(false); // debounced version of showFavoritesOnly, used for filtering
   let hideManwhaCount = $state(false); // hide the total manhwa count in the popup view
   let showHiddenOnly = $state(false); // show only hidden manhwa
+  let appliedHiddenOnly = $state(false); // debounced version of showHiddenOnly, used for filtering
   let sortByField = $state<SortField>("Title"); // default sort by field
   let sortByDirection = $state<SortDirection>("asc"); // default sort by direction
 
   // Front-end Client side filtering of the manhwa list based on search query, status filter, and favorites filter
   let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let favoritesDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let hiddenDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   function handleSearchInput() {
-
     isSearching = true;
 
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
@@ -77,26 +84,45 @@
     const allTags = manhwaStore.allTags;
     const titleMatches = matchesSearch(debouncedQuery, a.title);
     const statusMatches = status === "All" || a.status === status;
-    const favoriteMatches = !showFavoritesOnly || a.favorite;
-    const hiddenMatches = showHiddenOnly ? a.hidden : !a.hidden;
+    const favoriteMatches = !appliedFavoritesOnly || a.favorite;
+    const hiddenMatches = appliedHiddenOnly ? a.hidden : !a.hidden;
     // Show all is defualt for filtering purposes user does not actually see this
     const showAll = Object.values(allTags).every((tag) => !tag.active);
     const tagsMatches = a.tags.some((tag) => allTags[tag.tagName] && allTags[tag.tagName].active) || showAll;
     return titleMatches && statusMatches && favoriteMatches && hiddenMatches && tagsMatches;
   };
 
-  let filtered = $derived.by(() => {
-    const withRank = manhwaStore.list
-      .map((m) => ({ m, match: bestSearchRank(debouncedQuery, [m.title]) }))
-      .filter(
-        ({ m, match }) => (debouncedQuery.trim() ? match !== null : true) && compare(m)
-      );
+  let manhwasQueryMatched = $derived(
+    manhwaStore.list.map((m) => ({ m, match: bestSearchRank(debouncedQuery, [m.title]) }))
+  );
 
+  let filtered = $derived.by(() => {
+    const withRank = manhwasQueryMatched.filter(
+      ({ m, match }) => (debouncedQuery.trim() ? match !== null : true) && compare(m)
+    );
     if (debouncedQuery.trim()) {
       return withRank.sort((a, b) => compareSearchRank(a.match!, b.match!)).map(({ m }) => m);
     }
     return withRank.map(({ m }) => m).sort((a, b) => manhwasSortBy(a, b, sortByField, sortByDirection));
   });
+
+  let readyIds = $state<Set<string>>(new Set());
+
+  // Warm covers for the FULL list, not just the current filter — so switching
+  // between favorites/hidden views later hits already-resolved entries instead
+  // of re-triggering the flash.
+  $effect(() => {
+    for (const m of manhwaStore.list) {
+      if (!readyIds.has(m.id)) {
+        preloadCover(m).then(() => {
+          readyIds = new Set(readyIds).add(m.id);
+        });
+      }
+    }
+  });
+
+  let visibleFiltered = $derived(filtered.filter((m) => readyIds.has(m.id)));
+
   function handleStatusSelect(label: string) {
     status = label;
     fields.statusFilter.set(label);
@@ -104,12 +130,22 @@
 
   function handleShowFavoritesToggle() {
     showFavoritesOnly = !showFavoritesOnly;
-    fields.showFavoritesOnly.set(showFavoritesOnly);
+
+    if (favoritesDebounceTimer) clearTimeout(favoritesDebounceTimer);
+    favoritesDebounceTimer = setTimeout(() => {
+      appliedFavoritesOnly = showFavoritesOnly; // commit once clicks have paused
+      fields.showFavoritesOnly.set(showFavoritesOnly);
+    }, 260); // a touch past 250ms flip duration, so a burst fully settles before the grid reacts
   }
 
   function handleShowHiddenToggle() {
     showHiddenOnly = !showHiddenOnly;
-    fields.hiddenFilter.set(showHiddenOnly);
+
+    if (hiddenDebounceTimer) clearTimeout(hiddenDebounceTimer);
+    hiddenDebounceTimer = setTimeout(() => {
+      appliedHiddenOnly = showHiddenOnly;
+      fields.hiddenFilter.set(showHiddenOnly);
+    }, 260);
   }
 
   function handleHideCounts() {
@@ -130,27 +166,25 @@
   // Handle persistance of search queries, show favorites only, and status filter in Chrome storage
   // hydration from storage now needs to set both variables together
   $effect(() => {
-    fields.searchQuery.get().then((q) => {
+    Promise.all([
+      fields.searchQuery.get(),
+      fields.showFavoritesOnly.get(),
+      fields.statusFilter.get(),
+      fields.hiddenFilter.get(),
+      fields.toggleManhwaCount.get(),
+      fields.sortByField.get(),
+      fields.sortByDirection.get()
+    ]).then(([q, fav, st, hidden, hideCount, field, dir]) => {
       searchQuery = q;
       debouncedQuery = q;
-    });
-    fields.showFavoritesOnly.get().then((v) => {
-      showFavoritesOnly = v;
-    });
-    fields.statusFilter.get().then((v) => {
-      status = v;
-    });
-    fields.hiddenFilter.get().then((v) => {
-      showHiddenOnly = v;
-    });
-    fields.toggleManhwaCount.get().then((v) => {
-      hideManwhaCount = v;
-    });
-    fields.sortByField.get().then((v) => {
-      sortByField = v as SortField;
-    });
-    fields.sortByDirection.get().then((v) => {
-      sortByDirection = v as SortDirection;
+      showFavoritesOnly = fav;
+      appliedFavoritesOnly = fav;
+      status = st;
+      showHiddenOnly = hidden;
+      appliedHiddenOnly = hidden;
+      hideManwhaCount = hideCount;
+      sortByField = field as SortField;
+      sortByDirection = dir as SortDirection;
     });
   });
 
@@ -160,12 +194,22 @@
   });
   fields.showFavoritesOnly.onChange((v) => {
     showFavoritesOnly = v;
+    appliedFavoritesOnly = v; // external change — no local burst to guard against, apply now
+    if (favoritesDebounceTimer) {
+      clearTimeout(favoritesDebounceTimer);
+      favoritesDebounceTimer = null;
+    }
   });
   fields.statusFilter.onChange((v) => {
     status = v;
   });
   fields.hiddenFilter.onChange((v) => {
     showHiddenOnly = v;
+    appliedHiddenOnly = v;
+    if (hiddenDebounceTimer) {
+      clearTimeout(hiddenDebounceTimer);
+      hiddenDebounceTimer = null;
+    }
   });
   fields.toggleManhwaCount.onChange((v) => {
     hideManwhaCount = v;
@@ -177,7 +221,6 @@
     sortByDirection = v as SortDirection;
   });
 
-
   async function clearSearch() {
     searchQuery = "";
     debouncedQuery = "";
@@ -188,10 +231,12 @@
 
     if (showFavoritesOnly) {
       showFavoritesOnly = false;
+      appliedFavoritesOnly = false;
       fields.showFavoritesOnly.set(false);
     }
     if (showHiddenOnly) {
       showHiddenOnly = false;
+      appliedHiddenOnly = false;
       fields.hiddenFilter.set(false);
     }
   }
@@ -227,26 +272,34 @@
   }
 
   async function bulkDelete() {
-    for (const id of selectedIds) {
-      await manhwaStore.remove(id);
-    }
+    const arrIds = Array.from(selectedIds);
+    Promise.all(arrIds.map((id) => manhwaStore.remove(id))).then(() => {
+      selectedIds = new Set();
+      selectMode = false;
+    });
     selectedIds = new Set();
     selectMode = false;
   }
 
-  let allSelected = $derived(filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id)));
+  let allSelected = $derived(visibleFiltered.length > 0 && visibleFiltered.every((m) => selectedIds.has(m.id)));
 
   function toggleSelectAll() {
     if (allSelected) {
       selectedIds = new Set();
     } else {
-      selectedIds = new Set(filtered.map((m) => m.id));
+      selectedIds = new Set(visibleFiltered.map((m) => m.id));
     }
   }
 </script>
 
 <div class="popup">
-  <SearchBar bind:searchQuery onSearch={handleSearchInput} onClear={clearSearch} placeholder="Search your library…" />
+  <Settings />
+  <SearchBar
+    bind:searchQuery
+    onSearch={handleSearchInput}
+    onClear={clearSearch}
+    placeholder="Search your library…"
+  />
   <nav class="status-nav">
     <StatusBar labels={statusValues} selected={status} onSelect={handleStatusSelect} />
     <button
@@ -276,7 +329,7 @@
     <TagFilter size={32} showHidden={showHiddenOnly} />
   </nav>
   <main class="grid-scroll">
-    {#if isSearching}
+    <!-- {#if isSearching}
       <p class="searching-state">
         Searching
         <span class="dots">
@@ -284,23 +337,31 @@
           <span class="dot"></span>
           <span class="dot"></span>
         </span>
-      </p>
-    {:else if filtered.length === 0 && status === "All" && !showFavoritesOnly}
+      </p> -->
+    {#if filtered.length === 0 && appliedFavoritesOnly}
+      <p class="empty-state">No favorite manhwas found.</p>
+    {:else if filtered.length === 0 && appliedHiddenOnly}
+      <p class="empty-state">No hidden manhwas found.</p>
+    {:else if filtered.length === 0 && status === "All" && (showFavoritesOnly || showHiddenOnly)}
       <p class="empty-state">Your library is empty. Add Some Manhwa!</p>
+    {:else if filtered.length > 0 && visibleFiltered.length === 0}
+      <p class="empty-state">Loading covers…</p>
     {:else if filtered.length === 0 && !debouncedQuery}
       <p class="empty-state">No manhwa found.</p>
     {:else if debouncedQuery && filtered.length === 0}
       <p class="empty-state">No manhwas found for "{debouncedQuery}".</p>
     {:else}
       <div class="grid">
-        {#each filtered as manhwa (manhwa.id)}
-          <Card
-            {manhwa}
-            onClick={openSidePanel}
-            {selectMode}
-            selected={selectedIds.has(manhwa.id)}
-            onToggleSelect={toggleSelect}
-          />
+        {#each visibleFiltered as manhwa (manhwa.id)}
+          <div class="card-slot" animate:flip={{ duration: 250, easing: sineOut }}>
+            <Card
+              {manhwa}
+              onClick={openSidePanel}
+              {selectMode}
+              selected={selectedIds.has(manhwa.id)}
+              onToggleSelect={toggleSelect}
+            />
+          </div>
         {/each}
       </div>
     {/if}
@@ -375,6 +436,7 @@
   }
 
   .popup {
+    position: relative;
     width: 480px;
     height: 480px;
     display: flex;
@@ -384,7 +446,7 @@
     color: #e2e8f0;
     overflow: hidden;
     border-radius: 8px;
-    padding: 14px 0px 0px;
+    padding: 24px 0px 0px;
   }
 
   .searching-state {
@@ -450,8 +512,10 @@
   }
 
   .grid-scroll {
+    position: relative;
     flex: 1;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     padding: 8px 8px 12px;
   }
 
@@ -480,6 +544,10 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     padding: 5px 0 0;
+  }
+
+  .card-slot {
+    min-width: 0; /* the exact rule .card relied on — now needed one level up */
   }
 
   .empty-state {

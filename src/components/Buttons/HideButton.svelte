@@ -28,15 +28,6 @@
   );
 
   let onLightBg = $derived(bgLuminance > 0.55);
-
-  $effect(() => {
-    console.log(
-      "HideButton bgLuminance:",
-      $state.snapshot(bgLuminance),
-      "onLightBg:",
-      $state.snapshot(onLightBg)
-    );
-  });
 </script>
 
 <button
